@@ -8,7 +8,15 @@ from pydantic import ValidationError
 
 from api import jobstore
 from api.queue import get_queue, get_redis
-from api.schemas import BatchCreated, JobCreated, JobListItem, JobStatusResponse
+from api.schemas import (
+    BatchBaseStatus,
+    BatchCreated,
+    BatchListItem,
+    BatchStatusResponse,
+    JobCreated,
+    JobListItem,
+    JobStatusResponse,
+)
 from gnss_engine.models.config import ProcessingConfig
 from gnss_engine.sweep import random_sweep
 from rq.job import Job
@@ -124,6 +132,51 @@ async def create_batch(
         "bases": bases_manifest,
     })
     return BatchCreated(batch_id=batch_id, status="queued", n_bases=len(base), n_configs=n_configs)
+
+
+def _batch_base_counts(job_ids: list[str]) -> tuple[int, int, int]:
+    done = failed = 0
+    for jid in job_ids:
+        st = _status(jid)
+        if st in ("finished", "failed"):
+            done += 1
+        if st == "failed":
+            failed += 1
+    return done, len(job_ids), failed
+
+
+def _compute_batch_status(batch_id: str) -> BatchStatusResponse | None:
+    manifest = jobstore.read_batch_manifest(batch_id)
+    if manifest is None:
+        return None
+    base_statuses = []
+    total_done = total_all = 0
+    for b in manifest["bases"]:
+        job_ids = [j["job_id"] for j in b["jobs"]]
+        done, total, failed = _batch_base_counts(job_ids)
+        base_statuses.append(BatchBaseStatus(base_id=b["base_id"], done=done, total=total, failed=failed))
+        total_done += done
+        total_all += total
+    status = "finished" if total_all > 0 and total_done == total_all else "running"
+    return BatchStatusResponse(batch_id=batch_id, status=status, bases=base_statuses, done=total_done, total=total_all)
+
+
+@app.get("/batches/{batch_id}", response_model=BatchStatusResponse)
+def batch_status(batch_id: str) -> BatchStatusResponse:
+    result = _compute_batch_status(batch_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="batch not found")
+    return result
+
+
+@app.get("/batches", response_model=list[BatchListItem])
+def list_batches() -> list[BatchListItem]:
+    items = []
+    for bid in jobstore.list_batch_ids():
+        st = _compute_batch_status(bid)
+        if st is not None:
+            items.append(BatchListItem(batch_id=bid, status=st.status, done=st.done, total=st.total))
+    return items
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)

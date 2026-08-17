@@ -133,3 +133,41 @@ def test_post_batch_requires_at_least_one_base(client):
 def test_post_batch_rejects_out_of_range_n_configs(client):
     resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "0"})
     assert resp.status_code == 422
+
+
+def test_batch_status_aggregates_children(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "2"})
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
+
+    jobstore.write_solution(job_ids[0], {"summary": {"fix_rate_pct": 80.0, "rms_sdn": 0.1, "rms_sde": 0.1, "rms_sdu": 0.2}})
+    jobstore.write_error(job_ids[1], ErrorInfo(type="ParseError", message="bad"))
+
+    status = client.get(f"/batches/{bid}").json()
+    assert status["status"] == "finished"
+    assert status["done"] == 2
+    assert status["total"] == 2
+    assert status["bases"][0]["failed"] == 1
+
+
+def test_batch_status_running_while_incomplete(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "2"})
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
+    jobstore.write_solution(job_ids[0], {"summary": {"fix_rate_pct": 80.0}})
+    status = client.get(f"/batches/{bid}").json()
+    assert status["status"] == "running"
+    assert status["done"] == 1
+
+
+def test_batch_status_404_when_unknown(client):
+    assert client.get("/batches/nope").status_code == 404
+
+
+def test_list_batches(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "1"})
+    bid = resp.json()["batch_id"]
+    items = client.get("/batches").json()
+    assert any(i["batch_id"] == bid for i in items)
