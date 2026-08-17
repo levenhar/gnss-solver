@@ -1,4 +1,4 @@
-import type { JobCreated, JobListItem, JobStatus, Solution } from "./types";
+import type { BatchCreated, BatchListItem, BatchReport, BatchStatus, JobCreated, JobListItem, JobStatus, Solution } from "./types";
 
 export function apiBase(): string {
   return (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://localhost:8000";
@@ -33,6 +33,18 @@ export const client = {
   },
   async createJob(form: FormData): Promise<JobCreated> {
     return parse(await fetch(`${apiBase()}/jobs`, { method: "POST", body: form }));
+  },
+  async createBatch(form: FormData): Promise<BatchCreated> {
+    return parse(await fetch(`${apiBase()}/batches`, { method: "POST", body: form }));
+  },
+  async listBatches(): Promise<BatchListItem[]> {
+    return parse(await fetch(`${apiBase()}/batches`));
+  },
+  async getBatch(id: string): Promise<BatchStatus> {
+    return parse(await fetch(`${apiBase()}/batches/${id}`));
+  },
+  async getBatchReport(id: string): Promise<BatchReport> {
+    return parse(await fetch(`${apiBase()}/batches/${id}/report`));
   },
   async health(): Promise<{ status: string; redis: boolean }> {
     return parse(await fetch(`${apiBase()}/health`));

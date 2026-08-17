@@ -53,6 +53,66 @@ export interface JobListItem { job_id: string; status: string; }
 export interface ErrorInfo { type: string; message: string; workdir: string | null; }
 export interface JobStatus { job_id: string; status: JobStatusValue; error: ErrorInfo | null; }
 
+export interface BatchCreated {
+  batch_id: string;
+  status: string;
+  n_bases: number;
+  n_configs: number;
+}
+
+export interface BatchListItem {
+  batch_id: string;
+  status: string;
+  done: number;
+  total: number;
+}
+
+export interface BatchBaseStatus {
+  base_id: string;
+  done: number;
+  total: number;
+  failed: number;
+}
+
+export interface BatchStatus {
+  batch_id: string;
+  status: string;
+  bases: BatchBaseStatus[];
+  done: number;
+  total: number;
+}
+
+export interface BatchReportEntry {
+  job_id: string;
+  config_idx: number;
+  config: Record<string, unknown>;
+  status: string;
+  fix_rate_pct: number | null;
+  rms_sdn: number | null;
+  rms_sde: number | null;
+  rms_sdu: number | null;
+}
+
+export interface BatchReportSummary {
+  best_job_id: string | null;
+  best_fix_rate_pct: number | null;
+  worst_fix_rate_pct: number | null;
+  mean_fix_rate_pct: number | null;
+  median_fix_rate_pct: number | null;
+  n_failed: number;
+}
+
+export interface BatchBaseReport {
+  base_id: string;
+  results: BatchReportEntry[];
+  summary: BatchReportSummary;
+}
+
+export interface BatchReport {
+  batch_id: string;
+  bases: BatchBaseReport[];
+}
+
 export const DEFAULT_CONFIG: ProcessingConfig = {
   mode: "static", constellations: ["GPS"], frequency: "l1+l2",
   elev_mask_deg: 15, snr_mask_dbhz: 35, tropo: "saastamoinen", iono: "broadcast",

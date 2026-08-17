@@ -29,3 +29,43 @@ describe("api client", () => {
     await expect(client.getResult("nope")).rejects.toBeInstanceOf(ApiError);
   });
 });
+
+describe("batch api client", () => {
+  it("createBatch POSTs FormData to /batches", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockReturnValue(
+      okJson({ batch_id: "b1", status: "queued", n_bases: 2, n_configs: 100 }, 201)
+    );
+    const fd = new FormData();
+    const res = await client.createBatch(fd);
+    expect(res.batch_id).toBe("b1");
+    const init = spy.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe("POST");
+    expect(String(spy.mock.calls[0][0])).toMatch(/\/batches$/);
+  });
+
+  it("listBatches GETs /batches", async () => {
+    vi.spyOn(globalThis, "fetch").mockReturnValue(
+      okJson([{ batch_id: "b1", status: "finished", done: 100, total: 100 }])
+    );
+    const items = await client.listBatches();
+    expect(items[0].batch_id).toBe("b1");
+  });
+
+  it("getBatch GETs /batches/:id", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockReturnValue(
+      okJson({ batch_id: "b1", status: "running", bases: [], done: 1, total: 100 })
+    );
+    const status = await client.getBatch("b1");
+    expect(status.done).toBe(1);
+    expect(String(spy.mock.calls[0][0])).toMatch(/\/batches\/b1$/);
+  });
+
+  it("getBatchReport GETs /batches/:id/report", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockReturnValue(
+      okJson({ batch_id: "b1", bases: [] })
+    );
+    const report = await client.getBatchReport("b1");
+    expect(report.batch_id).toBe("b1");
+    expect(String(spy.mock.calls[0][0])).toMatch(/\/batches\/b1\/report$/);
+  });
+});
