@@ -200,5 +200,25 @@ def test_batch_report_ranks_by_fix_rate_and_summarizes(client):
     assert summary["n_failed"] == 1
 
 
+def test_batch_report_all_failed_base_has_none_summary_no_crash(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "3"})
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
+
+    for jid in job_ids:
+        jobstore.write_error(jid, ErrorInfo(type="RtklibExecError", message="boom"))
+
+    resp = client.get(f"/batches/{bid}/report")
+    assert resp.status_code == 200
+    summary = resp.json()["bases"][0]["summary"]
+    assert summary["best_job_id"] is None
+    assert summary["best_fix_rate_pct"] is None
+    assert summary["worst_fix_rate_pct"] is None
+    assert summary["mean_fix_rate_pct"] is None
+    assert summary["median_fix_rate_pct"] is None
+    assert summary["n_failed"] == len(job_ids)
+
+
 def test_batch_report_404_when_unknown(client):
     assert client.get("/batches/nope/report").status_code == 404
