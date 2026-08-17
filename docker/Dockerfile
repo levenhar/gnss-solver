@@ -1,7 +1,7 @@
 # ---------- Stage 1: build RTKLIB rnx2rtkp + RNXCMP CRX2RNX ----------
 FROM debian:bookworm-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential git ca-certificates curl && \
+        build-essential gfortran git ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
 # RTKLIB demo5 (rnx2rtkp)
@@ -10,13 +10,13 @@ RUN make -C /src/rtklib/app/consapp/rnx2rtkp/gcc && \
     cp /src/rtklib/app/consapp/rnx2rtkp/gcc/rnx2rtkp /usr/local/bin/rnx2rtkp
 
 # RNXCMP (CRX2RNX) — Hatanaka compression tool
-RUN curl -fsSL https://terras.gsi.go.jp/ja/crx2rnx/RNXCMP_4.1.0_src.tar.gz -o /tmp/rnxcmp.tar.gz && \
+RUN curl -fsSL --retry 3 https://terras.gsi.go.jp/ja/crx2rnx/RNXCMP_4.2.0_src.tar.gz -o /tmp/rnxcmp.tar.gz && \
     tar xzf /tmp/rnxcmp.tar.gz -C /tmp && \
     gcc -O2 -o /usr/local/bin/CRX2RNX /tmp/RNXCMP_*/source/crx2rnx.c
 
 # ---------- Stage 2: runtime ----------
 FROM python:3.11-slim
-RUN apt-get update && apt-get install -y --no-install-recommends gzip && \
+RUN apt-get update && apt-get install -y --no-install-recommends gzip libgfortran5 && \
     rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/local/bin/rnx2rtkp /usr/local/bin/rnx2rtkp
 COPY --from=builder /usr/local/bin/CRX2RNX /usr/local/bin/CRX2RNX
