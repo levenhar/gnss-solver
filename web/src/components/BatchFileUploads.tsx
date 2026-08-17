@@ -1,15 +1,24 @@
+import { useRef, useState } from "react";
 import type { BatchFiles } from "../lib/buildBatchForm";
 
 export function BatchFileUploads({ value, onChange }: { value: BatchFiles; onChange: (v: BatchFiles) => void }) {
+  // Stable per-row ids, independent of array position, so React doesn't reuse/reconcile
+  // the wrong DOM node (and its uncontrolled <input type="file"> display) when a row is
+  // removed from the middle/start of the list.
+  const nextRowId = useRef(value.bases.length);
+  const [rowIds, setRowIds] = useState<number[]>(() => value.bases.map((_, i) => i));
+
   function setBase(i: number, f: File | null) {
     const bases = [...value.bases];
     bases[i] = f;
     onChange({ ...value, bases });
   }
   function addBase() {
+    setRowIds([...rowIds, nextRowId.current++]);
     onChange({ ...value, bases: [...value.bases, null] });
   }
   function removeBase(i: number) {
+    setRowIds(rowIds.filter((_, j) => j !== i));
     onChange({ ...value, bases: value.bases.filter((_, j) => j !== i) });
   }
 
@@ -27,7 +36,7 @@ export function BatchFileUploads({ value, onChange }: { value: BatchFiles; onCha
         <span className="mb-1 block text-muted">Bases (1+)</span>
         <div className="space-y-2">
           {value.bases.map((_, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={rowIds[i]} className="flex items-center gap-2">
               <label className="flex-1">
                 <span className="sr-only">{`Base ${i + 1}`}</span>
                 <input
