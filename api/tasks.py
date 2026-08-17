@@ -7,12 +7,13 @@ from gnss_engine.errors import EngineError
 
 
 def run_solve_job(job_id: str) -> None:
-    config = jobstore.read_config(job_id)
-    rover, nav, base = jobstore.resolve_inputs(job_id)
-    workdir = jobstore.job_dir(job_id) / "work"
     try:
+        config = jobstore.read_config(job_id)
+        rover, nav, base = jobstore.resolve_inputs(job_id)
+        workdir = jobstore.job_dir(job_id) / "work"
         solution = solve(rover, nav, config, base=base, workdir=workdir)
-    except EngineError as err:
+        jobstore.write_solution(job_id, solution.model_dump(mode="json"))
+    except Exception as err:
         jobstore.write_error(
             job_id,
             ErrorInfo(
@@ -22,4 +23,3 @@ def run_solve_job(job_id: str) -> None:
             ),
         )
         raise
-    jobstore.write_solution(job_id, solution.model_dump(mode="json"))

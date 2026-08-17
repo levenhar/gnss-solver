@@ -47,3 +47,19 @@ def test_run_solve_job_engine_error_writes_error_and_raises(data_env, monkeypatc
     assert err.type == "RtklibExecError"
     assert err.workdir == "/data/jobs/bad-job/work"
     assert jobstore.read_solution(jid) is None
+
+
+def test_run_solve_job_non_engine_error_writes_error_and_raises(data_env, monkeypatch):
+    jid = "runtime-error-job"
+    _seed_job(jid)
+
+    def fake_solve(rover, nav, config, base=None, workdir=None):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(tasks, "solve", fake_solve)
+    with pytest.raises(RuntimeError):
+        tasks.run_solve_job(jid)
+    err = jobstore.read_error(jid)
+    assert err.type == "RuntimeError"
+    assert err.message == "boom"
+    assert jobstore.read_solution(jid) is None
