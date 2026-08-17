@@ -1,0 +1,8 @@
+     3.04           OBSERVATION DATA    M                   RINEX VERSION / TYPE
+ROVR                                                        MARKER NAME
+SEPT POLARX5        SEPT POLARX5        5.3.0               REC # / TYPE / VERS
+1234                TRM59800.00     NONE                    ANT # / TYPE
+     1.000                                                  INTERVAL
+  2023     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS
+  2023     1     1     0     0   30.0000000     GPS         TIME OF LAST OBS
+                                                            END OF HEADER
