@@ -12,7 +12,7 @@ dependencies = ["pydantic>=2.6"]
 dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]
-include = ["gnss_engine*"]
+include = ["gnss_engine*", "api*", "worker*"]
 
 [tool.setuptools.package-data]
 "gnss_engine.conf" = ["*.conf"]
@@ -20,3 +20,8 @@ include = ["gnss_engine*"]
 [tool.pytest.ini_options]
 markers = ["requires_rtklib: needs rnx2rtkp/CRX2RNX on PATH"]
 testpaths = ["tests"]
+filterwarnings = [
+    # Third-party: newer Starlette TestClient deprecates httpx in favour of httpx2.
+    # Not our code and not actionable here; keep test output pristine.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
