@@ -17,7 +17,7 @@ export function PlotlyChart({ data, layout }: { data: Partial<Data>[]; layout?: 
       layout={{ ...DARK, ...layout, autosize: true }}
       useResizeHandler
       style={{ width: "100%", height: "420px" }}
-      config={{ displModeBar: false } as any}
+      config={{ displayModeBar: false } as any}
     />
   );
 }
