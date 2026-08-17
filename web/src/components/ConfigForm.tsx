@@ -76,6 +76,12 @@ export function ConfigForm({ value, onChange }: { value: ProcessingConfig; onCha
       <Field label="AR ratio min">
         <input type="number" step="0.1" className={selCls} value={value.ar_ratio_min} onChange={(e) => set("ar_ratio_min", Number(e.target.value))} />
       </Field>
+      <Field label="AR min lock count">
+        <input type="number" step="1" min={0} className={selCls} value={value.ar_min_lock} onChange={(e) => set("ar_min_lock", Number(e.target.value))} />
+      </Field>
+      <Field label="AR min elevation (°)">
+        <input type="number" step="0.1" min={0} max={90} className={selCls} value={value.ar_min_elev_deg} onChange={(e) => set("ar_min_elev_deg", Number(e.target.value))} />
+      </Field>
       <Field label="Ephemeris">
         <select className={selCls} value={value.ephemeris} onChange={(e) => set("ephemeris", e.target.value as EphemerisSource)}>
           {EPHS.map((t) => <option key={t} value={t}>{t}</option>)}
