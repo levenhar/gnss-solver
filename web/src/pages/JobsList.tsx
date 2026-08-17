@@ -17,7 +17,6 @@ export function JobsList() {
   });
 
   const isLoading = jobs.isLoading || batches.isLoading;
-  const error = jobs.error || batches.error;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -28,7 +27,9 @@ export function JobsList() {
         </Link>
       </div>
       {isLoading && <p className="text-muted">Loading…</p>}
-      {error && <p className="text-red-400">Failed to load jobs.</p>}
+      {jobs.error && batches.error && <p className="text-red-400">Failed to load jobs and batches.</p>}
+      {jobs.error && !batches.error && <p className="text-red-400">Failed to load jobs.</p>}
+      {!jobs.error && batches.error && <p className="text-red-400">Failed to load batches.</p>}
       <div className="divide-y divide-hair rounded-lg border border-hair bg-panel">
         {(batches.data ?? []).map((b) => (
           <Link key={b.batch_id} to={`/batches/${b.batch_id}`} className="flex items-center justify-between px-4 py-3 hover:bg-white/5">
