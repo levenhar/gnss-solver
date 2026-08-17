@@ -3,7 +3,6 @@ from __future__ import annotations
 from api import jobstore
 from api.schemas import ErrorInfo
 from gnss_engine import solve
-from gnss_engine.errors import EngineError
 
 
 def run_solve_job(job_id: str) -> None:
