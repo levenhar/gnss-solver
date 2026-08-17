@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from math import sqrt
+
+from gnss_engine.models.result import Epoch, SolutionSummary
+
+
+def _mean(values: list[float]) -> float:
+    return sum(values) / len(values) if values else 0.0
+
+
+def _rms(values: list[float]) -> float:
+    return sqrt(sum(v * v for v in values) / len(values)) if values else 0.0
+
+
+def summarize(epochs: list[Epoch]) -> SolutionSummary:
+    n = len(epochs)
+    n_fix = sum(1 for e in epochs if e.q == 1)
+    n_float = sum(1 for e in epochs if e.q == 2)
+    n_single = sum(1 for e in epochs if e.q >= 4)
+    sdn = [e.sdn for e in epochs]
+    sde = [e.sde for e in epochs]
+    sdu = [e.sdu for e in epochs]
+    return SolutionSummary(
+        n_epochs=n,
+        n_fix=n_fix,
+        n_float=n_float,
+        n_single=n_single,
+        fix_rate_pct=(100.0 * n_fix / n) if n else 0.0,
+        mean_sdn=_mean(sdn),
+        mean_sde=_mean(sde),
+        mean_sdu=_mean(sdu),
+        rms_sdn=_rms(sdn),
+        rms_sde=_rms(sde),
+        rms_sdu=_rms(sdu),
+    )
