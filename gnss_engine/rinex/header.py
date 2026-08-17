@@ -15,7 +15,9 @@ def _label(line: str) -> str:
 def _obs_time(line: str) -> datetime:
     y = int(line[0:6]); mo = int(line[6:12]); d = int(line[12:18])
     h = int(line[18:24]); mi = int(line[24:30]); s = float(line[30:43])
-    return datetime(y, mo, d, h, mi, int(s), tzinfo=timezone.utc)
+    sec = int(s)
+    micro = round((s - sec) * 1_000_000)
+    return datetime(y, mo, d, h, mi, sec, microsecond=micro, tzinfo=timezone.utc)
 
 
 def parse_header(path: Path) -> DatasetMeta:
