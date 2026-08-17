@@ -12,7 +12,7 @@ dependencies = ["pydantic>=2.6"]
 dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]
-include = ["gnss_engine*"]
+include = ["gnss_engine*", "api*", "worker*"]
 
 [tool.setuptools.package-data]
 "gnss_engine.conf" = ["*.conf"]
