@@ -8,8 +8,9 @@ from pydantic import ValidationError
 
 from api import jobstore
 from api.queue import get_queue, get_redis
-from api.schemas import JobCreated, JobListItem, JobStatusResponse
+from api.schemas import BatchCreated, JobCreated, JobListItem, JobStatusResponse
 from gnss_engine.models.config import ProcessingConfig
+from gnss_engine.sweep import random_sweep
 from rq.job import Job
 from rq.exceptions import NoSuchJobError
 
@@ -77,6 +78,52 @@ async def create_job(
 
     get_queue().enqueue("api.tasks.run_solve_job", job_id, job_id=job_id)
     return JobCreated(job_id=job_id, status="queued")
+
+
+@app.post("/batches", status_code=201, response_model=BatchCreated)
+async def create_batch(
+    rover: UploadFile = File(...),
+    nav: list[UploadFile] = File(...),
+    base: list[UploadFile] = File(...),
+    n_configs: int = Form(100),
+) -> BatchCreated:
+    if not nav:
+        raise HTTPException(status_code=422, detail="at least one nav file is required")
+    if not base:
+        raise HTTPException(status_code=422, detail="at least one base file is required")
+    if not 1 <= n_configs <= 200:
+        raise HTTPException(status_code=422, detail="n_configs must be between 1 and 200")
+
+    batch_id = uuid.uuid4().hex
+    rover_filename = rover.filename or "rover.rnx"
+    rover_bytes = await rover.read()
+    nav_uploads = [(nf.filename or "nav", await nf.read()) for nf in nav]
+    configs = random_sweep(n=n_configs)
+    queue = get_queue()
+
+    bases_manifest = []
+    for base_idx, bf in enumerate(base):
+        base_id = f"base-{base_idx}"
+        base_filename = bf.filename or f"base{base_idx}.rnx"
+        base_bytes = await bf.read()
+        jobs = []
+        for config_idx, cfg in enumerate(configs):
+            job_id = uuid.uuid4().hex
+            jobstore.save_upload(job_id, "rover", rover_filename, rover_bytes)
+            for nav_filename, nav_bytes in nav_uploads:
+                jobstore.save_upload(job_id, "nav", nav_filename, nav_bytes)
+            jobstore.save_upload(job_id, "base", base_filename, base_bytes)
+            jobstore.write_config(job_id, cfg)
+            queue.enqueue("api.tasks.run_solve_job", job_id, job_id=job_id)
+            jobs.append({"job_id": job_id, "config_idx": config_idx})
+        bases_manifest.append({"base_id": base_id, "filename": base_filename, "jobs": jobs})
+
+    jobstore.write_batch_manifest(batch_id, {
+        "batch_id": batch_id,
+        "n_configs": n_configs,
+        "bases": bases_manifest,
+    })
+    return BatchCreated(batch_id=batch_id, status="queued", n_bases=len(base), n_configs=n_configs)
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)

@@ -94,3 +94,42 @@ def test_list_jobs(client):
     items = {i["job_id"]: i["status"] for i in client.get("/jobs").json()}
     assert items["j1"] == "finished"
     assert items["j2"] == "failed"
+
+
+def _batch_files(n_bases=2):
+    files = [
+        ("rover", ("r.rnx", b"OBS", "application/octet-stream")),
+        ("nav", ("a.nav", b"NAV", "application/octet-stream")),
+    ]
+    for i in range(n_bases):
+        files.append(("base", (f"base{i}.rnx", b"BASE", "application/octet-stream")))
+    return files
+
+
+def test_post_batch_creates_jobs_for_every_base_and_config(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=2), data={"n_configs": "3"})
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["status"] == "queued"
+    assert body["n_bases"] == 2
+    assert body["n_configs"] == 3
+    manifest = jobstore.read_batch_manifest(body["batch_id"])
+    assert len(manifest["bases"]) == 2
+    for b in manifest["bases"]:
+        assert len(b["jobs"]) == 3
+    all_job_ids = [j["job_id"] for b in manifest["bases"] for j in b["jobs"]]
+    assert len(set(all_job_ids)) == 6
+
+
+def test_post_batch_requires_at_least_one_base(client):
+    files = [
+        ("rover", ("r.rnx", b"OBS", "application/octet-stream")),
+        ("nav", ("a.nav", b"NAV", "application/octet-stream")),
+    ]
+    resp = client.post("/batches", files=files, data={"n_configs": "5"})
+    assert resp.status_code == 422
+
+
+def test_post_batch_rejects_out_of_range_n_configs(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "0"})
+    assert resp.status_code == 422
