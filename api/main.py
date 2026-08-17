@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import statistics
 import uuid
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -9,9 +10,13 @@ from pydantic import ValidationError
 from api import jobstore
 from api.queue import get_queue, get_redis
 from api.schemas import (
+    BatchBaseReport,
     BatchBaseStatus,
     BatchCreated,
     BatchListItem,
+    BatchReportEntry,
+    BatchReportResponse,
+    BatchReportSummary,
     BatchStatusResponse,
     JobCreated,
     JobListItem,
@@ -177,6 +182,53 @@ def list_batches() -> list[BatchListItem]:
         if st is not None:
             items.append(BatchListItem(batch_id=bid, status=st.status, done=st.done, total=st.total))
     return items
+
+
+@app.get("/batches/{batch_id}/report", response_model=BatchReportResponse)
+def batch_report(batch_id: str) -> BatchReportResponse:
+    manifest = jobstore.read_batch_manifest(batch_id)
+    if manifest is None:
+        raise HTTPException(status_code=404, detail="batch not found")
+
+    base_reports = []
+    for b in manifest["bases"]:
+        entries = []
+        fix_rates = []
+        for j in b["jobs"]:
+            jid = j["job_id"]
+            st = _status(jid)
+            sol = jobstore.read_solution(jid) if st == "finished" else None
+            cfg = jobstore.read_config(jid).model_dump(mode="json")
+            fix_rate = sdn = sde = sdu = None
+            if sol is not None:
+                summary = sol.get("summary", {})
+                fix_rate = summary.get("fix_rate_pct")
+                sdn = summary.get("rms_sdn")
+                sde = summary.get("rms_sde")
+                sdu = summary.get("rms_sdu")
+                if fix_rate is not None:
+                    fix_rates.append(fix_rate)
+            entries.append(BatchReportEntry(
+                job_id=jid, config_idx=j["config_idx"], config=cfg, status=st,
+                fix_rate_pct=fix_rate, rms_sdn=sdn, rms_sde=sde, rms_sdu=sdu,
+            ))
+        entries.sort(key=lambda e: (e.fix_rate_pct is None, -(e.fix_rate_pct or 0.0)))
+        n_failed = sum(1 for e in entries if e.status == "failed")
+        if fix_rates:
+            best_entry = next(e for e in entries if e.fix_rate_pct == max(fix_rates))
+            summary = BatchReportSummary(
+                best_job_id=best_entry.job_id,
+                best_fix_rate_pct=max(fix_rates),
+                worst_fix_rate_pct=min(fix_rates),
+                mean_fix_rate_pct=statistics.mean(fix_rates),
+                median_fix_rate_pct=statistics.median(fix_rates),
+                n_failed=n_failed,
+            )
+        else:
+            summary = BatchReportSummary(n_failed=n_failed)
+        base_reports.append(BatchBaseReport(base_id=b["base_id"], results=entries, summary=summary))
+
+    return BatchReportResponse(batch_id=batch_id, bases=base_reports)
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)

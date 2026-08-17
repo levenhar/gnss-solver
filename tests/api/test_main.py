@@ -171,3 +171,34 @@ def test_list_batches(client):
     bid = resp.json()["batch_id"]
     items = client.get("/batches").json()
     assert any(i["batch_id"] == bid for i in items)
+
+
+def test_batch_report_ranks_by_fix_rate_and_summarizes(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "3"})
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
+
+    jobstore.write_solution(job_ids[0], {"summary": {"fix_rate_pct": 60.0, "rms_sdn": 0.3, "rms_sde": 0.3, "rms_sdu": 0.4}})
+    jobstore.write_solution(job_ids[1], {"summary": {"fix_rate_pct": 95.0, "rms_sdn": 0.1, "rms_sde": 0.1, "rms_sdu": 0.2}})
+    jobstore.write_error(job_ids[2], ErrorInfo(type="RtklibExecError", message="boom"))
+
+    report = client.get(f"/batches/{bid}/report").json()
+    base_report = report["bases"][0]
+    ordered_ids = [r["job_id"] for r in base_report["results"]]
+    assert ordered_ids[0] == job_ids[1]
+    assert ordered_ids[1] == job_ids[0]
+    assert ordered_ids[2] == job_ids[2]
+    assert base_report["results"][2]["status"] == "failed"
+    assert base_report["results"][2]["fix_rate_pct"] is None
+
+    summary = base_report["summary"]
+    assert summary["best_job_id"] == job_ids[1]
+    assert summary["best_fix_rate_pct"] == 95.0
+    assert summary["worst_fix_rate_pct"] == 60.0
+    assert summary["mean_fix_rate_pct"] == 77.5
+    assert summary["n_failed"] == 1
+
+
+def test_batch_report_404_when_unknown(client):
+    assert client.get("/batches/nope/report").status_code == 404
