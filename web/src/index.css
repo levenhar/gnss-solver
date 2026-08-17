@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+body { @apply bg-base text-ink; margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
+.tnum { font-variant-numeric: tabular-nums; }
