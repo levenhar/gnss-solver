@@ -5,6 +5,7 @@ from importlib import resources
 from gnss_engine.models.config import (
     ProcessingConfig,
     AmbiguityMode,
+    BaseCoordMode,
     Constellation,
     EphemerisSource,
     Frequency,
@@ -59,6 +60,11 @@ _EPH = {
     EphemerisSource.BROADCAST: "brdc",
     EphemerisSource.PRECISE: "precise",
 }
+_BASE_COORD_MODE = {
+    BaseCoordMode.SINGLE: "single",
+    BaseCoordMode.KNOWN_LLH: "llh",
+    BaseCoordMode.KNOWN_XYZ: "xyz",
+}
 
 
 def _fmt(v: float) -> str:
@@ -67,10 +73,12 @@ def _fmt(v: float) -> str:
 
 def _overrides(config: ProcessingConfig) -> dict[str, str]:
     navsys = sum(_NAVSYS_BITS[c] for c in config.constellations)
-    return {
+    overrides = {
         "pos1-posmode": _MODE[config.mode],
         "pos1-frequency": _FREQ[config.frequency],
         "pos1-elmask": _fmt(config.elev_mask_deg),
+        "pos1-snrmask_r": "on",
+        "pos1-snrmask_b": "on",
         "pos1-snrmask_L1": _fmt(config.snr_mask_dbhz),
         "pos1-navsys": str(navsys),
         "pos1-tropopt": _TROPO[config.tropo],
@@ -82,7 +90,17 @@ def _overrides(config: ProcessingConfig) -> dict[str, str]:
         "pos2-arelmask": _fmt(config.ar_min_elev_deg),
         "out-solformat": "llh",
         "out-outstat": "residual",
+        "ant2-postype": _BASE_COORD_MODE[config.base_coord_mode],
     }
+    if (
+        config.base_coord_mode in (BaseCoordMode.KNOWN_LLH, BaseCoordMode.KNOWN_XYZ)
+        and config.base_coord is not None
+    ):
+        c1, c2, c3 = config.base_coord
+        overrides["ant2-pos1"] = _fmt(c1)
+        overrides["ant2-pos2"] = _fmt(c2)
+        overrides["ant2-pos3"] = _fmt(c3)
+    return overrides
 
 
 def render_conf(config: ProcessingConfig) -> str:

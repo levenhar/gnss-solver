@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -23,8 +24,16 @@ def solve(
     workdir: Path | None = None,
 ) -> Solution:
     if workdir is None:
-        with tempfile.TemporaryDirectory() as tmp:
-            return solve(rover, nav, config, base=base, workdir=Path(tmp))
+        tmp = tempfile.mkdtemp()
+        try:
+            result = solve(rover, nav, config, base=base, workdir=Path(tmp))
+        except Exception:
+            # Retain the temp workdir on failure so its path (carried in the
+            # raised exception, e.g. RtklibExecError.workdir) is inspectable.
+            raise
+        else:
+            shutil.rmtree(tmp, ignore_errors=True)
+            return result
 
     workdir = Path(workdir)
     workdir.mkdir(parents=True, exist_ok=True)

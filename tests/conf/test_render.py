@@ -6,6 +6,7 @@ from gnss_engine.models.config import (
     PositioningMode,
     Constellation,
     AmbiguityMode,
+    BaseCoordMode,
 )
 
 
@@ -40,3 +41,37 @@ def test_multi_constellation_bitmask():
     assert kv["pos1-posmode"] == "kinematic"
     assert kv["pos1-navsys"] == "45"          # 1+4+8+32
     assert kv["pos2-armode"] == "fix-and-hold"
+
+
+def test_snr_mask_enable_gates_are_turned_on():
+    kv = _kv(render_conf(ProcessingConfig()))
+    assert kv["pos1-snrmask_r"] == "on"
+    assert kv["pos1-snrmask_b"] == "on"
+    assert kv["pos1-snrmask_L1"] == "35"
+
+
+def test_base_coord_mode_defaults_to_single():
+    kv = _kv(render_conf(ProcessingConfig()))
+    assert kv["ant2-postype"] == "single"
+
+
+def test_base_coord_known_xyz_renders_position():
+    cfg = ProcessingConfig(
+        base_coord_mode=BaseCoordMode.KNOWN_XYZ,
+        base_coord=(4000000.0, 3000000.0, 3900000.0),
+    )
+    kv = _kv(render_conf(cfg))
+    assert kv["ant2-postype"] == "xyz"
+    assert kv["ant2-pos1"] == "4000000"
+    assert kv["ant2-pos2"] == "3000000"
+    assert kv["ant2-pos3"] == "3900000"
+
+
+def test_base_coord_known_llh_renders_position():
+    cfg = ProcessingConfig(
+        base_coord_mode=BaseCoordMode.KNOWN_LLH,
+        base_coord=(32.5, 34.5, 100.0),
+    )
+    kv = _kv(render_conf(cfg))
+    assert kv["ant2-postype"] == "llh"
+    assert kv["ant2-pos1"] == "32.5"
