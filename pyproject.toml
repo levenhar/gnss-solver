@@ -20,3 +20,8 @@ include = ["gnss_engine*", "api*", "worker*"]
 [tool.pytest.ini_options]
 markers = ["requires_rtklib: needs rnx2rtkp/CRX2RNX on PATH"]
 testpaths = ["tests"]
+filterwarnings = [
+    # Third-party: newer Starlette TestClient deprecates httpx in favour of httpx2.
+    # Not our code and not actionable here; keep test output pristine.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
