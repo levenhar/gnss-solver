@@ -24,4 +24,24 @@ describe("buildBatchForm", () => {
     const fd = buildBatchForm(files);
     expect(fd.get("n_configs")).toBe("100");
   });
+
+  it("skips null entries in bases array", () => {
+    const files: BatchFiles = {
+      rover: file("r.rnx"),
+      nav: [file("a.nav")],
+      bases: [file("base1.obs"), null, file("base2.obs"), null],
+    };
+    const fd = buildBatchForm(files);
+    expect(fd.getAll("base").map((f) => (f as File).name)).toEqual(["base1.obs", "base2.obs"]);
+  });
+
+  it("handles empty bases array", () => {
+    const files: BatchFiles = {
+      rover: file("r.rnx"),
+      nav: [file("a.nav")],
+      bases: [],
+    };
+    const fd = buildBatchForm(files);
+    expect(fd.getAll("base")).toEqual([]);
+  });
 });
