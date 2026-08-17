@@ -2,6 +2,7 @@ import { Link, Route, Routes } from "react-router-dom";
 import { JobsList } from "./pages/JobsList";
 import { NewJob } from "./pages/NewJob";
 import { JobDetail } from "./pages/JobDetail";
+import { BatchDetail } from "./pages/BatchDetail";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/" element={<JobsList />} />
           <Route path="/new" element={<NewJob />} />
           <Route path="/jobs/:id" element={<JobDetail />} />
+          <Route path="/batches/:id" element={<BatchDetail />} />
         </Routes>
       </main>
     </div>
