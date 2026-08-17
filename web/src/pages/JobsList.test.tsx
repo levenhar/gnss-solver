@@ -20,4 +20,12 @@ describe("JobsList", () => {
     wrap(<JobsList />);
     await waitFor(() => expect(screen.getByText(/abc123/)).toBeInTheDocument());
   });
+
+  it("lists batches alongside jobs with progress", async () => {
+    vi.spyOn(client, "listJobs").mockResolvedValue([{ job_id: "abc123", status: "finished" }]);
+    vi.spyOn(client, "listBatches").mockResolvedValue([{ batch_id: "batch1", status: "running", done: 40, total: 100 }]);
+    wrap(<JobsList />);
+    await waitFor(() => expect(screen.getByText(/batch1/)).toBeInTheDocument());
+    expect(screen.getByText(/40\s*\/\s*100/)).toBeInTheDocument();
+  });
 });
