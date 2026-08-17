@@ -87,3 +87,31 @@ def list_job_ids() -> list[str]:
     if not root.exists():
         return []
     return [d.name for d in root.iterdir() if d.is_dir()]
+
+
+def _batches_root() -> Path:
+    return get_settings().data_dir / "batches"
+
+
+def batch_dir(batch_id: str) -> Path:
+    return _batches_root() / batch_id
+
+
+def write_batch_manifest(batch_id: str, manifest: dict) -> None:
+    d = batch_dir(batch_id)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def read_batch_manifest(batch_id: str) -> dict | None:
+    p = batch_dir(batch_id) / "manifest.json"
+    if not p.exists():
+        return None
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def list_batch_ids() -> list[str]:
+    root = _batches_root()
+    if not root.exists():
+        return []
+    return [d.name for d in root.iterdir() if d.is_dir()]

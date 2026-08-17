@@ -38,3 +38,30 @@ def test_list_job_ids(data_env):
     jobstore.save_upload("j-a", "rover", "r.rnx", b"x")
     jobstore.save_upload("j-b", "rover", "r.rnx", b"x")
     assert set(jobstore.list_job_ids()) == {"j-a", "j-b"}
+
+
+def test_batch_manifest_roundtrip(data_env):
+    bid = "batch1"
+    assert jobstore.read_batch_manifest(bid) is None
+    manifest = {
+        "batch_id": bid,
+        "created_at": "2026-08-17T00:00:00+00:00",
+        "n_configs": 2,
+        "bases": [{"base_id": "base-0", "filename": "b.obs", "jobs": [
+            {"job_id": "j1", "config_idx": 0},
+            {"job_id": "j2", "config_idx": 1},
+        ]}],
+    }
+    jobstore.write_batch_manifest(bid, manifest)
+    loaded = jobstore.read_batch_manifest(bid)
+    assert loaded == manifest
+
+
+def test_list_batch_ids(data_env):
+    jobstore.write_batch_manifest("b-a", {"batch_id": "b-a", "bases": []})
+    jobstore.write_batch_manifest("b-b", {"batch_id": "b-b", "bases": []})
+    assert set(jobstore.list_batch_ids()) == {"b-a", "b-b"}
+
+
+def test_list_batch_ids_empty_when_no_batches_dir(data_env):
+    assert jobstore.list_batch_ids() == []
