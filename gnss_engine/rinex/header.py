@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from gnss_engine.models.result import DatasetMeta
@@ -15,9 +15,8 @@ def _label(line: str) -> str:
 def _obs_time(line: str) -> datetime:
     y = int(line[0:6]); mo = int(line[6:12]); d = int(line[12:18])
     h = int(line[18:24]); mi = int(line[24:30]); s = float(line[30:43])
-    sec = int(s)
-    micro = round((s - sec) * 1_000_000)
-    return datetime(y, mo, d, h, mi, sec, microsecond=micro, tzinfo=timezone.utc)
+    base = datetime(y, mo, d, h, mi, tzinfo=timezone.utc)
+    return base + timedelta(seconds=s)
 
 
 def parse_header(path: Path) -> DatasetMeta:
