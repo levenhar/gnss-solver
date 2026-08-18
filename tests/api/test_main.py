@@ -135,6 +135,25 @@ def test_post_batch_rejects_out_of_range_n_configs(client):
     assert resp.status_code == 422
 
 
+def test_post_batch_writes_created_at_to_manifest(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "1"})
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    assert manifest.get("created_at")
+
+
+def test_post_batch_accepts_fanout_at_cap(client, monkeypatch):
+    monkeypatch.setattr(main_mod, "MAX_TOTAL_BATCH_JOBS", 4)
+    resp = client.post("/batches", files=_batch_files(n_bases=2), data={"n_configs": "2"})
+    assert resp.status_code == 201
+
+
+def test_post_batch_rejects_fanout_over_cap(client, monkeypatch):
+    monkeypatch.setattr(main_mod, "MAX_TOTAL_BATCH_JOBS", 4)
+    resp = client.post("/batches", files=_batch_files(n_bases=2), data={"n_configs": "3"})
+    assert resp.status_code == 422
+
+
 def test_batch_status_aggregates_children(client):
     resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "2"})
     bid = resp.json()["batch_id"]
@@ -222,3 +241,31 @@ def test_batch_report_all_failed_base_has_none_summary_no_crash(client):
 
 def test_batch_report_404_when_unknown(client):
     assert client.get("/batches/nope/report").status_code == 404
+
+
+def test_batch_report_failed_entry_includes_error_info(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "1"})
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    jid = manifest["bases"][0]["jobs"][0]["job_id"]
+    jobstore.write_error(jid, ErrorInfo(type="RtklibExecError", message="boom"))
+
+    report = client.get(f"/batches/{bid}/report").json()
+    entry = report["bases"][0]["results"][0]
+    assert entry["status"] == "failed"
+    assert entry["error_type"] == "RtklibExecError"
+    assert entry["error_message"] == "boom"
+
+
+def test_batch_report_finished_entry_has_no_error_info(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "1"})
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    jid = manifest["bases"][0]["jobs"][0]["job_id"]
+    jobstore.write_solution(jid, {"summary": {"fix_rate_pct": 80.0}})
+
+    report = client.get(f"/batches/{bid}/report").json()
+    entry = report["bases"][0]["results"][0]
+    assert entry["status"] == "finished"
+    assert entry["error_type"] is None
+    assert entry["error_message"] is None

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import statistics
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,6 +29,13 @@ from rq.job import Job
 from rq.exceptions import NoSuchJobError
 
 app = FastAPI(title="GNSS Solver API")
+
+# Cap on total fan-out (bases * n_configs) for a single POST /batches request.
+# n_configs alone is capped 1-200, but the number of base files is unbounded,
+# so this stops a request from synchronously creating an unreasonable number
+# of job dirs (each duplicating full rover/nav/base file bytes to disk) before
+# the request handler returns.
+MAX_TOTAL_BATCH_JOBS = 500
 
 app.add_middleware(
     CORSMiddleware,
@@ -106,6 +114,14 @@ async def create_batch(
         raise HTTPException(status_code=422, detail="at least one base file is required")
     if not 1 <= n_configs <= 200:
         raise HTTPException(status_code=422, detail="n_configs must be between 1 and 200")
+    if len(base) * n_configs > MAX_TOTAL_BATCH_JOBS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"total batch jobs (bases x n_configs = {len(base) * n_configs}) "
+                f"must not exceed {MAX_TOTAL_BATCH_JOBS}"
+            ),
+        )
 
     batch_id = uuid.uuid4().hex
     rover_filename = rover.filename or "rover.rnx"
@@ -133,6 +149,7 @@ async def create_batch(
 
     jobstore.write_batch_manifest(batch_id, {
         "batch_id": batch_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "n_configs": n_configs,
         "bases": bases_manifest,
     })
@@ -200,6 +217,7 @@ def batch_report(batch_id: str) -> BatchReportResponse:
             sol = jobstore.read_solution(jid) if st == "finished" else None
             cfg = jobstore.read_config(jid).model_dump(mode="json")
             fix_rate = sdn = sde = sdu = None
+            error_type = error_message = None
             if sol is not None:
                 summary = sol.get("summary", {})
                 fix_rate = summary.get("fix_rate_pct")
@@ -208,9 +226,15 @@ def batch_report(batch_id: str) -> BatchReportResponse:
                 sdu = summary.get("rms_sdu")
                 if fix_rate is not None:
                     fix_rates.append(fix_rate)
+            if st == "failed":
+                err = jobstore.read_error(jid)
+                if err is not None:
+                    error_type = err.type
+                    error_message = err.message
             entries.append(BatchReportEntry(
                 job_id=jid, config_idx=j["config_idx"], config=cfg, status=st,
                 fix_rate_pct=fix_rate, rms_sdn=sdn, rms_sde=sde, rms_sdu=sdu,
+                error_type=error_type, error_message=error_message,
             ))
         entries.sort(key=lambda e: (e.fix_rate_pct is None, -(e.fix_rate_pct or 0.0)))
         n_failed = sum(1 for e in entries if e.status == "failed")
