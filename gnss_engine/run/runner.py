@@ -33,10 +33,13 @@ def run_rnx2rtkp(
     args.extend(str(n) for n in nav)
 
     proc = subprocess.run(args, capture_output=True, text=True, cwd=str(workdir))
-    if proc.returncode != 0:
+    if proc.returncode != 0 or not pos_path.exists():
+        # rnx2rtkp (demo5 build) reports fatal errors via showmsg() to
+        # stdout and still exits 0 without writing solution.pos, so a
+        # missing output file is treated as a failure too.
         raise RtklibExecError(
             exit_code=proc.returncode,
-            stderr=proc.stderr or "",
+            stderr=(proc.stderr or "") + (proc.stdout or ""),
             workdir=str(workdir),
         )
     return RunResult(

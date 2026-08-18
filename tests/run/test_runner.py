@@ -54,3 +54,24 @@ def test_runner_raises_on_nonzero_exit(tmp_path, monkeypatch):
         run_rnx2rtkp(conf, rover, None, [nav], tmp_path)
     assert ei.value.exit_code == 2
     assert "bad rinex" in ei.value.stderr
+
+
+def test_runner_raises_when_exit_zero_but_no_pos_file(tmp_path, monkeypatch):
+    # demo5 rnx2rtkp prints fatal errors (e.g. "error : no obs data",
+    # "error : station pos computation") to stdout via showmsg() and still
+    # exits 0 without writing solution.pos.
+    def fake_run(args, capture_output, text, cwd=None):
+        return subprocess.CompletedProcess(
+            args, 0, stdout="error : no obs data", stderr=""
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    conf = _touch(tmp_path / "opts.conf")
+    rover = _touch(tmp_path / "r.rnx")
+    nav = _touch(tmp_path / "r.nav")
+
+    with pytest.raises(RtklibExecError) as ei:
+        run_rnx2rtkp(conf, rover, None, [nav], tmp_path)
+    assert ei.value.exit_code == 0
+    assert "no obs data" in ei.value.stderr

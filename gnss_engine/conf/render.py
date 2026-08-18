@@ -28,7 +28,7 @@ _MODE = {
     PositioningMode.KINEMATIC: "kinematic",
     PositioningMode.MOVINGBASE: "movingbase",
     PositioningMode.PPP_STATIC: "ppp-static",
-    PositioningMode.PPP_KINEMATIC: "ppp-kinematic",
+    PositioningMode.PPP_KINEMATIC: "ppp-kine",
 }
 _FREQ = {
     Frequency.L1: "l1",

@@ -279,7 +279,12 @@ def job_result(job_id: str):
 
 @app.get("/jobs", response_model=list[JobListItem])
 def list_jobs() -> list[JobListItem]:
-    return [JobListItem(job_id=j, status=_status(j)) for j in jobstore.list_job_ids()]
+    batch_job_ids = jobstore.list_batch_job_ids()
+    return [
+        JobListItem(job_id=j, status=_status(j))
+        for j in jobstore.list_job_ids()
+        if j not in batch_job_ids
+    ]
 
 
 @app.get("/health")

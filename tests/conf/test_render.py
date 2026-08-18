@@ -75,3 +75,17 @@ def test_base_coord_known_llh_renders_position():
     kv = _kv(render_conf(cfg))
     assert kv["ant2-postype"] == "llh"
     assert kv["ant2-pos1"] == "32.5"
+
+
+def test_ppp_kinematic_renders_rtklib_enum_token():
+    # demo5 RTKLIB's pos1-posmode enum only recognizes "ppp-kine" (see
+    # MODOPT in src/options.c), not "ppp-kinematic". str2enum() does a
+    # bare substring search with no end-of-token check, so a value that
+    # doesn't match any listed token at all (not even as a wrong
+    # substring) is silently rejected and prcopt.mode is left at
+    # whatever it defaulted to (PMODE_KINEMA=2, a *relative* mode that
+    # needs a base) -- turning a requested PPP job into a silently
+    # different, base-dependent one.
+    cfg = ProcessingConfig(mode=PositioningMode.PPP_KINEMATIC)
+    kv = _kv(render_conf(cfg))
+    assert kv["pos1-posmode"] == "ppp-kine"

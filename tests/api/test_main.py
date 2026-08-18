@@ -96,6 +96,18 @@ def test_list_jobs(client):
     assert items["j2"] == "failed"
 
 
+def test_list_jobs_excludes_batch_member_jobs(client):
+    jobstore.write_solution("standalone", {"summary": {}})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "2"})
+    manifest = jobstore.read_batch_manifest(resp.json()["batch_id"])
+    batch_job_ids = {j["job_id"] for j in manifest["bases"][0]["jobs"]}
+
+    listed = {i["job_id"] for i in client.get("/jobs").json()}
+
+    assert "standalone" in listed
+    assert listed.isdisjoint(batch_job_ids)
+
+
 def _batch_files(n_bases=2):
     files = [
         ("rover", ("r.rnx", b"OBS", "application/octet-stream")),

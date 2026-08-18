@@ -115,3 +115,14 @@ def list_batch_ids() -> list[str]:
     if not root.exists():
         return []
     return [d.name for d in root.iterdir() if d.is_dir()]
+
+
+def list_batch_job_ids() -> set[str]:
+    ids: set[str] = set()
+    for bid in list_batch_ids():
+        manifest = read_batch_manifest(bid)
+        if manifest is None:
+            continue
+        for b in manifest["bases"]:
+            ids.update(j["job_id"] for j in b["jobs"])
+    return ids
