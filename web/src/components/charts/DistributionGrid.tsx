@@ -2,12 +2,19 @@ import type { BatchReportEntry } from "../../api/types";
 import { distributionData } from "../../lib/chartData";
 import { PlotlyChart } from "./PlotlyChart";
 
-const METRICS: { key: keyof BatchReportEntry; title: string; color: string }[] = [
-  { key: "fix_rate_pct", title: "fix rate (%)", color: "#38bdf8" },
-  { key: "rms_sdn", title: "RMS N (m)", color: "#16a34a" },
-  { key: "rms_sde", title: "RMS E (m)", color: "#eab308" },
-  { key: "rms_sdu", title: "RMS U (m)", color: "#2563eb" },
+const METRICS: { key: keyof BatchReportEntry; title: string; color: string; decimals: number }[] = [
+  { key: "fix_rate_pct", title: "fix rate (%)", color: "#38bdf8", decimals: 1 },
+  { key: "rms_sdn", title: "RMS N (m)", color: "#16a34a", decimals: 3 },
+  { key: "rms_sde", title: "RMS E (m)", color: "#eab308", decimals: 3 },
+  { key: "rms_sdu", title: "RMS U (m)", color: "#2563eb", decimals: 3 },
 ];
+
+function stdDev(values: number[]): number {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((a, v) => a + v, 0) / values.length;
+  const variance = values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
 
 export function DistributionGrid({ results }: { results: BatchReportEntry[] }) {
   const successful = results.filter((r) => r.status !== "failed");
@@ -22,7 +29,10 @@ export function DistributionGrid({ results }: { results: BatchReportEntry[] }) {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {byMetric.map((m) => (
         <div key={m.title} className="rounded-md border border-hair p-2">
-          <div className="mb-1 text-xs uppercase text-muted">{m.title}</div>
+          <div className="mb-1 text-xs uppercase text-muted">
+            {m.title}
+            {m.values.length > 0 && ` · σ ${stdDev(m.values).toFixed(m.decimals)}`}
+          </div>
           {m.values.length ? (
             <PlotlyChart
               data={distributionData(m.values, m.color)}
