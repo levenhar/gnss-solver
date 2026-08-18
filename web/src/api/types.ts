@@ -121,3 +121,33 @@ export const DEFAULT_CONFIG: ProcessingConfig = {
   ambiguity: "continuous", ar_ratio_min: 3, ar_min_lock: 0, ar_min_elev_deg: 0,
   ephemeris: "broadcast", base_coord_mode: "single", base_coord: null,
 };
+
+export interface SweepConfig {
+  mode: PositioningMode;
+  constellation_pool: Constellation[];
+  elev_mask_range: [number, number];
+  ar_ratio_min_range: [number, number];
+  ar_min_lock_range: [number, number];
+  ar_min_elev_range: [number, number];
+  snr_mask_dbhz: number;
+  frequency_pool: Frequency[];
+  tropo_pool: TropoModel[];
+  iono_pool: IonoModel[];
+  ambiguity_pool: AmbiguityMode[];
+  ephemeris_pool: EphemerisSource[];
+}
+
+export const DEFAULT_SWEEP_CONFIG: SweepConfig = {
+  mode: "static",
+  constellation_pool: ["GLO", "GAL", "BDS", "QZSS", "SBAS"],
+  elev_mask_range: [0, 90],
+  ar_ratio_min_range: [1.5, 5],
+  ar_min_lock_range: [0, 10],
+  ar_min_elev_range: [0, 30],
+  snr_mask_dbhz: 15,
+  frequency_pool: ["l1", "l1+l2", "l1+l2+l5"],
+  tropo_pool: ["off", "saastamoinen", "sbas", "estimate-ztd", "estimate-ztd-grad"],
+  iono_pool: ["off", "broadcast", "sbas", "iono-free-lc", "estimate-stec", "ionex"],
+  ambiguity_pool: ["off", "continuous", "instantaneous", "fix-and-hold"],
+  ephemeris_pool: ["broadcast", "precise"],
+};

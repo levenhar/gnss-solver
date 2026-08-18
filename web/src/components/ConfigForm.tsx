@@ -2,6 +2,7 @@ import type {
   ProcessingConfig, PositioningMode, Constellation, Frequency, TropoModel,
   IonoModel, AmbiguityMode, EphemerisSource, BaseCoordMode,
 } from "../api/types";
+import { Field } from "./Field";
 
 const MODES: PositioningMode[] = ["static", "kinematic", "movingbase", "ppp-static", "ppp-kinematic"];
 const CONSTS: Constellation[] = ["GPS", "GLO", "GAL", "BDS", "QZSS", "SBAS"];
@@ -12,14 +13,6 @@ const ARS: AmbiguityMode[] = ["off", "continuous", "instantaneous", "fix-and-hol
 const EPHS: EphemerisSource[] = ["broadcast", "precise"];
 const BASEMODES: BaseCoordMode[] = ["single", "known-llh", "known-xyz"];
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="text-sm">
-      <span className="mb-1 block text-muted">{label}</span>
-      {children}
-    </label>
-  );
-}
 const selCls = "w-full rounded-md border border-hair bg-base px-2 py-1.5 text-ink";
 
 export function ConfigForm({ value, onChange }: { value: ProcessingConfig; onChange: (v: ProcessingConfig) => void }) {
