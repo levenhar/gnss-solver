@@ -92,3 +92,62 @@ class ProcessingConfig(BaseModel):
         if not 0.0 <= v <= 60.0:
             raise ValueError("SNR mask must be between 0 and 60 dBHz")
         return v
+
+
+class SweepConfig(BaseModel):
+    mode: PositioningMode
+    constellation_pool: list[Constellation] = [
+        Constellation.GLO,
+        Constellation.GAL,
+        Constellation.BDS,
+        Constellation.QZSS,
+        Constellation.SBAS,
+    ]
+    elev_mask_range: tuple[float, float] = (0.0, 90.0)
+    ar_ratio_min_range: tuple[float, float] = (1.5, 5.0)
+    ar_min_lock_range: tuple[int, int] = (0, 10)
+    ar_min_elev_range: tuple[float, float] = (0.0, 30.0)
+    snr_mask_dbhz: float = 15.0
+    frequency_pool: list[Frequency] = list(Frequency)
+    tropo_pool: list[TropoModel] = list(TropoModel)
+    iono_pool: list[IonoModel] = list(IonoModel)
+    ambiguity_pool: list[AmbiguityMode] = list(AmbiguityMode)
+    ephemeris_pool: list[EphemerisSource] = list(EphemerisSource)
+
+    @field_validator("elev_mask_range", "ar_min_elev_range")
+    @classmethod
+    def _elev_range_bounds(cls, v: tuple[float, float]) -> tuple[float, float]:
+        lo, hi = v
+        if not (0.0 <= lo <= 90.0 and 0.0 <= hi <= 90.0):
+            raise ValueError("elevation range bounds must be between 0 and 90 degrees")
+        if lo > hi:
+            raise ValueError("range min must be <= max")
+        return v
+
+    @field_validator("ar_ratio_min_range")
+    @classmethod
+    def _ar_ratio_min_range(cls, v: tuple[float, float]) -> tuple[float, float]:
+        lo, hi = v
+        if lo > hi:
+            raise ValueError("range min must be <= max")
+        return v
+
+    @field_validator("ar_min_lock_range")
+    @classmethod
+    def _ar_min_lock_range(cls, v: tuple[int, int]) -> tuple[int, int]:
+        lo, hi = v
+        if lo < 0 or hi < 0:
+            raise ValueError("ar_min_lock_range bounds must be >= 0")
+        if lo > hi:
+            raise ValueError("range min must be <= max")
+        return v
+
+    @field_validator(
+        "constellation_pool", "frequency_pool", "tropo_pool",
+        "iono_pool", "ambiguity_pool", "ephemeris_pool",
+    )
+    @classmethod
+    def _non_empty_pool(cls, v: list) -> list:
+        if not v:
+            raise ValueError("pool must not be empty")
+        return v
