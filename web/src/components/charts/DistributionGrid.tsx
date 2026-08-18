@@ -29,8 +29,8 @@ export function DistributionGrid({ results }: { results: BatchReportEntry[] }) {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {byMetric.map((m) => (
         <div key={m.title} className="rounded-md border border-hair p-2">
-          <div className="mb-1 text-xs uppercase text-muted">
-            {m.title}
+          <div className="mb-1 text-xs text-muted">
+            {m.title.toUpperCase()}
             {m.values.length > 0 && ` · σ ${stdDev(m.values).toFixed(m.decimals)}`}
           </div>
           {m.values.length ? (
