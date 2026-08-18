@@ -3,50 +3,37 @@ from __future__ import annotations
 import random
 
 from gnss_engine.models.config import (
-    AmbiguityMode,
     BaseCoordMode,
     Constellation,
-    EphemerisSource,
-    Frequency,
-    IonoModel,
-    PositioningMode,
     ProcessingConfig,
-    TropoModel,
-)
-
-_OPTIONAL_CONSTELLATIONS = (
-    Constellation.GLO,
-    Constellation.GAL,
-    Constellation.BDS,
-    Constellation.QZSS,
-    Constellation.SBAS,
+    SweepConfig,
 )
 
 
-def _random_constellations(rng: random.Random) -> list[Constellation]:
+def _random_constellations(rng: random.Random, pool: list[Constellation]) -> list[Constellation]:
     constellations = [Constellation.GPS]
-    for c in _OPTIONAL_CONSTELLATIONS:
+    for c in pool:
         if rng.random() < 0.5:
             constellations.append(c)
     return constellations
 
 
-def random_sweep(n: int = 100, seed: int | None = None) -> list[ProcessingConfig]:
+def random_sweep(sweep: SweepConfig, n: int = 100, seed: int | None = None) -> list[ProcessingConfig]:
     rng = random.Random(seed)
     return [
         ProcessingConfig(
-            mode=rng.choice(list(PositioningMode)),
-            constellations=_random_constellations(rng),
-            frequency=rng.choice(list(Frequency)),
-            elev_mask_deg=rng.uniform(0.0, 90.0),
-            snr_mask_dbhz=rng.uniform(0.0, 60.0),
-            tropo=rng.choice(list(TropoModel)),
-            iono=rng.choice(list(IonoModel)),
-            ambiguity=rng.choice(list(AmbiguityMode)),
-            ar_ratio_min=rng.uniform(1.5, 5.0),
-            ar_min_lock=rng.randint(0, 10),
-            ar_min_elev_deg=rng.uniform(0.0, 30.0),
-            ephemeris=rng.choice(list(EphemerisSource)),
+            mode=sweep.mode,
+            constellations=_random_constellations(rng, sweep.constellation_pool),
+            frequency=rng.choice(sweep.frequency_pool),
+            elev_mask_deg=rng.uniform(*sweep.elev_mask_range),
+            snr_mask_dbhz=sweep.snr_mask_dbhz,
+            tropo=rng.choice(sweep.tropo_pool),
+            iono=rng.choice(sweep.iono_pool),
+            ambiguity=rng.choice(sweep.ambiguity_pool),
+            ar_ratio_min=rng.uniform(*sweep.ar_ratio_min_range),
+            ar_min_lock=rng.randint(*sweep.ar_min_lock_range),
+            ar_min_elev_deg=rng.uniform(*sweep.ar_min_elev_range),
+            ephemeris=rng.choice(sweep.ephemeris_pool),
             base_coord_mode=BaseCoordMode.SINGLE,
             base_coord=None,
         )
