@@ -19,12 +19,12 @@ describe("NewJob batch mode", () => {
     expect(screen.queryByText(/\+ Add base/i)).not.toBeInTheDocument();
   });
 
-  it("switching to batch mode reveals multi-base add button and hides ConfigForm", async () => {
+  it("switching to batch mode reveals multi-base add button and sweep config form", async () => {
     const user = userEvent.setup();
     wrap();
     await user.click(screen.getByLabelText(/batch: random sweep/i));
     expect(screen.getByText(/\+ Add base/i)).toBeInTheDocument();
-    expect(screen.getByText(/100 random configs/i)).toBeInTheDocument();
+    expect(screen.getByText(/positioning mode \(fixed for whole batch\)/i)).toBeInTheDocument();
   });
 
   it("submits batch via client.createBatch when in batch mode", async () => {

@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { DEFAULT_CONFIG, type ProcessingConfig } from "../api/types";
+import { DEFAULT_CONFIG, DEFAULT_SWEEP_CONFIG, type ProcessingConfig, type SweepConfig } from "../api/types";
 import { client } from "../api/client";
 import { buildJobForm, type JobFiles } from "../lib/buildJobForm";
 import { buildBatchForm, type BatchFiles } from "../lib/buildBatchForm";
 import { FileUploads } from "../components/FileUploads";
 import { BatchFileUploads } from "../components/BatchFileUploads";
 import { ConfigForm } from "../components/ConfigForm";
+import { SweepConfigForm } from "../components/SweepConfigForm";
 
 export function NewJob() {
   const nav = useNavigate();
@@ -14,6 +15,7 @@ export function NewJob() {
   const [files, setFiles] = useState<JobFiles>({ rover: null, base: null, nav: [] });
   const [batchFiles, setBatchFiles] = useState<BatchFiles>({ rover: null, nav: [], bases: [null] });
   const [config, setConfig] = useState<ProcessingConfig>(DEFAULT_CONFIG);
+  const [sweepConfig, setSweepConfig] = useState<SweepConfig>(DEFAULT_SWEEP_CONFIG);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -32,7 +34,7 @@ export function NewJob() {
         const res = await client.createJob(buildJobForm(files, config));
         nav(`/jobs/${res.job_id}`);
       } else {
-        const res = await client.createBatch(buildBatchForm(batchFiles));
+        const res = await client.createBatch(buildBatchForm(batchFiles, sweepConfig));
         nav(`/batches/${res.batch_id}`);
       }
     } catch (err) {
@@ -66,9 +68,12 @@ export function NewJob() {
           <ConfigForm value={config} onChange={setConfig} />
         </section>
       ) : (
-        <section className="rounded-lg border border-hair bg-panel p-4 text-sm text-muted">
-          100 random configs will be generated and run against each base. Base position is taken from each base file
-          (single-solution mode) — no manual coordinates.
+        <section className="rounded-lg border border-hair bg-panel p-4">
+          <p className="mb-4 text-sm text-muted">
+            100 random configs will be generated per the bounds below and run against each base. Base position is
+            taken from each base file (single-solution mode) — no manual coordinates.
+          </p>
+          <SweepConfigForm value={sweepConfig} onChange={setSweepConfig} />
         </section>
       )}
       {error && <p className="text-sm text-red-400">{error}</p>}
