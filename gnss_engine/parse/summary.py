@@ -33,4 +33,7 @@ def summarize(epochs: list[Epoch]) -> SolutionSummary:
         rms_sdn=_rms(sdn),
         rms_sde=_rms(sde),
         rms_sdu=_rms(sdu),
+        mean_lat=_mean([e.lat for e in epochs]) if epochs else None,
+        mean_lon=_mean([e.lon for e in epochs]) if epochs else None,
+        mean_h=_mean([e.h for e in epochs]) if epochs else None,
     )

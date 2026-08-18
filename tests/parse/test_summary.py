@@ -6,10 +6,10 @@ from gnss_engine.parse.summary import summarize
 from gnss_engine.models.result import Epoch
 
 
-def _e(q: int, sdn: float, sde: float, sdu: float) -> Epoch:
+def _e(q: int, sdn: float, sde: float, sdu: float, lat: float = 0.0, lon: float = 0.0, h: float = 0.0) -> Epoch:
     return Epoch(
         t=datetime(2023, 1, 1, tzinfo=timezone.utc),
-        lat=0.0, lon=0.0, h=0.0, q=q, ns=8,
+        lat=lat, lon=lon, h=h, q=q, ns=8,
         sdn=sdn, sde=sde, sdu=sdu, sdne=0.0, age=0.0, ratio=0.0,
     )
 
@@ -30,3 +30,21 @@ def test_empty_summary_is_zeroed():
     assert s.n_epochs == 0
     assert s.fix_rate_pct == 0.0
     assert s.mean_sdu == 0.0
+
+
+def test_summary_mean_position():
+    epochs = [
+        _e(1, 0.01, 0.02, 0.03, lat=32.0, lon=34.0, h=50.0),
+        _e(1, 0.01, 0.02, 0.03, lat=32.002, lon=34.004, h=52.0),
+    ]
+    s = summarize(epochs)
+    assert abs(s.mean_lat - 32.001) < 1e-9
+    assert abs(s.mean_lon - 34.002) < 1e-9
+    assert abs(s.mean_h - 51.0) < 1e-9
+
+
+def test_empty_summary_has_no_position():
+    s = summarize([])
+    assert s.mean_lat is None
+    assert s.mean_lon is None
+    assert s.mean_h is None

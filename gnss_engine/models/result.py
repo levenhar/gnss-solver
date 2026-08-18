@@ -60,6 +60,9 @@ class SolutionSummary(BaseModel):
     rms_sdn: float
     rms_sde: float
     rms_sdu: float
+    mean_lat: float | None = None
+    mean_lon: float | None = None
+    mean_h: float | None = None
 
 
 class Solution(BaseModel):
