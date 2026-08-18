@@ -63,6 +63,9 @@ class BatchReportEntry(BaseModel):
     rms_sdn: float | None = None
     rms_sde: float | None = None
     rms_sdu: float | None = None
+    utm_e: float | None = None
+    utm_n: float | None = None
+    mean_h: float | None = None
     error_type: str | None = None
     error_message: str | None = None
 

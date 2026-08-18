@@ -266,6 +266,53 @@ def test_batch_report_404_when_unknown(client):
     assert client.get("/batches/nope/report").status_code == 404
 
 
+def test_batch_report_converts_mean_position_to_utm(client):
+    from pyproj import Transformer
+
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("2"))
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
+
+    jobstore.write_solution(job_ids[0], {"summary": {
+        "fix_rate_pct": 90.0, "mean_lat": 32.0, "mean_lon": 34.0, "mean_h": 50.0,
+    }})
+    jobstore.write_solution(job_ids[1], {"summary": {
+        "fix_rate_pct": 80.0, "mean_lat": 32.002, "mean_lon": 34.004, "mean_h": 52.0,
+    }})
+
+    report = client.get(f"/batches/{bid}/report").json()
+    results = {r["job_id"]: r for r in report["bases"][0]["results"]}
+
+    ref_lon = (34.0 + 34.004) / 2
+    zone = int((ref_lon + 180) // 6) + 1
+    transformer = Transformer.from_crs("EPSG:4326", f"EPSG:{32600 + zone}", always_xy=True)
+    expected_e0, expected_n0 = transformer.transform(34.0, 32.0)
+    expected_e1, expected_n1 = transformer.transform(34.004, 32.002)
+
+    assert results[job_ids[0]]["utm_e"] == pytest.approx(expected_e0)
+    assert results[job_ids[0]]["utm_n"] == pytest.approx(expected_n0)
+    assert results[job_ids[0]]["mean_h"] == 50.0
+    assert results[job_ids[1]]["utm_e"] == pytest.approx(expected_e1)
+    assert results[job_ids[1]]["utm_n"] == pytest.approx(expected_n1)
+    assert results[job_ids[1]]["mean_h"] == 52.0
+
+
+def test_batch_report_no_position_data_leaves_utm_none(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("2"))
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
+
+    jobstore.write_solution(job_ids[0], {"summary": {"fix_rate_pct": 90.0}})
+    jobstore.write_solution(job_ids[1], {"summary": {"fix_rate_pct": 80.0}})
+
+    report = client.get(f"/batches/{bid}/report").json()
+    for r in report["bases"][0]["results"]:
+        assert r["utm_e"] is None
+        assert r["utm_n"] is None
+
+
 def test_batch_report_failed_entry_includes_error_info(client):
     resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("1"))
     bid = resp.json()["batch_id"]

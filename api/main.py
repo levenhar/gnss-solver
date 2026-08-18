@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
+from pyproj import Transformer
 
 from api import jobstore
 from api.queue import get_queue, get_redis
@@ -207,6 +208,12 @@ def list_batches() -> list[BatchListItem]:
     return items
 
 
+def _utm_transformer(ref_lat: float, ref_lon: float) -> Transformer:
+    zone = int((ref_lon + 180) // 6) + 1
+    epsg = (32600 if ref_lat >= 0 else 32700) + zone
+    return Transformer.from_crs("EPSG:4326", f"EPSG:{epsg}", always_xy=True)
+
+
 @app.get("/batches/{batch_id}/report", response_model=BatchReportResponse)
 def batch_report(batch_id: str) -> BatchReportResponse:
     manifest = jobstore.read_batch_manifest(batch_id)
@@ -217,12 +224,13 @@ def batch_report(batch_id: str) -> BatchReportResponse:
     for b in manifest["bases"]:
         entries = []
         fix_rates = []
+        positions = []  # (entry_index, lat, lon)
         for j in b["jobs"]:
             jid = j["job_id"]
             st = _status(jid)
             sol = jobstore.read_solution(jid) if st == "finished" else None
             cfg = jobstore.read_config(jid).model_dump(mode="json")
-            fix_rate = sdn = sde = sdu = None
+            fix_rate = sdn = sde = sdu = mean_h = mean_lat = mean_lon = None
             error_type = error_message = None
             if sol is not None:
                 summary = sol.get("summary", {})
@@ -230,6 +238,9 @@ def batch_report(batch_id: str) -> BatchReportResponse:
                 sdn = summary.get("rms_sdn")
                 sde = summary.get("rms_sde")
                 sdu = summary.get("rms_sdu")
+                mean_lat = summary.get("mean_lat")
+                mean_lon = summary.get("mean_lon")
+                mean_h = summary.get("mean_h")
                 if fix_rate is not None:
                     fix_rates.append(fix_rate)
             if st == "failed":
@@ -240,8 +251,19 @@ def batch_report(batch_id: str) -> BatchReportResponse:
             entries.append(BatchReportEntry(
                 job_id=jid, config_idx=j["config_idx"], config=cfg, status=st,
                 fix_rate_pct=fix_rate, rms_sdn=sdn, rms_sde=sde, rms_sdu=sdu,
-                error_type=error_type, error_message=error_message,
+                mean_h=mean_h, error_type=error_type, error_message=error_message,
             ))
+            if mean_lat is not None and mean_lon is not None:
+                positions.append((len(entries) - 1, mean_lat, mean_lon))
+
+        if positions:
+            ref_lat = statistics.mean(p[1] for p in positions)
+            ref_lon = statistics.mean(p[2] for p in positions)
+            transformer = _utm_transformer(ref_lat, ref_lon)
+            for idx, lat, lon in positions:
+                e, n = transformer.transform(lon, lat)
+                entries[idx] = entries[idx].model_copy(update={"utm_e": e, "utm_n": n})
+
         entries.sort(key=lambda e: (e.fix_rate_pct is None, -(e.fix_rate_pct or 0.0)))
         n_failed = sum(1 for e in entries if e.status == "failed")
         if fix_rates:
