@@ -151,3 +151,10 @@ class SweepConfig(BaseModel):
         if not v:
             raise ValueError("pool must not be empty")
         return v
+
+    @field_validator("snr_mask_dbhz")
+    @classmethod
+    def _snr_range(cls, v: float) -> float:
+        if not 0.0 <= v <= 60.0:
+            raise ValueError("SNR mask must be between 0 and 60 dBHz")
+        return v

@@ -72,7 +72,7 @@ export function SweepConfigForm({ value, onChange }: { value: SweepConfig; onCha
         </select>
       </Field>
       <Field label="SNR mask (fixed)">
-        <input type="number" className={selCls} value={value.snr_mask_dbhz} disabled />
+        <input type="number" className={selCls} value={value.snr_mask_dbhz} min={0} max={60} disabled />
       </Field>
 
       <div className="sm:col-span-2">

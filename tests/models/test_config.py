@@ -96,3 +96,8 @@ def test_sweep_config_ar_min_lock_range_rejects_negative():
 def test_sweep_config_pools_reject_empty(field):
     with pytest.raises(ValidationError):
         SweepConfig(mode="static", **{field: []})
+
+
+def test_sweep_config_snr_mask_out_of_range_rejected():
+    with pytest.raises(ValidationError):
+        SweepConfig(mode="static", snr_mask_dbhz=999.0)
