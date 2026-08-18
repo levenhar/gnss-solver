@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { BatchDetail } from "./BatchDetail";
@@ -57,9 +57,13 @@ describe("BatchDetail", () => {
       }],
     });
     wrap("b1");
+    await waitFor(() => expect(screen.getByText("base-0")).toBeInTheDocument());
+    // overall "All bases" stats visible before expanding any base
+    expect(screen.getByText("All bases")).toBeInTheDocument();
+    expect(screen.queryByText("j-best")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /base-0/ }));
     await waitFor(() => expect(screen.getByText("j-best")).toBeInTheDocument());
     expect(screen.getAllByText(/95/).length).toBeGreaterThan(0);
-    expect(screen.getByText("base-0")).toBeInTheDocument();
     // config summary column (finding 1): config_idx + compact one-line summary
     expect(screen.getByText(/#1/)).toBeInTheDocument();
     expect(screen.getByText(/static/)).toBeInTheDocument();
@@ -90,6 +94,8 @@ describe("BatchDetail", () => {
       }],
     });
     wrap("b1");
+    await waitFor(() => expect(screen.getByText("base-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /base-0/ }));
     await waitFor(() => expect(screen.getByText("j-fail")).toBeInTheDocument());
     expect(screen.getByText("RtklibExecError")).toBeInTheDocument();
     expect(screen.getByText("boom")).toBeInTheDocument();
