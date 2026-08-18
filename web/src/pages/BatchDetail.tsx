@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { client } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import type { BatchBaseReport } from "../api/types";
+import { DistributionGrid } from "../components/charts/DistributionGrid";
 
 function summarizeConfig(configIdx: number, config: Record<string, unknown>): string {
   const mode = config.mode ?? "—";
@@ -89,6 +90,9 @@ export function BatchDetail() {
               <StatTile label="Mean fix rate" value={overall.mean != null ? `${overall.mean.toFixed(1)}%` : "—"} />
               <StatTile label="Failed runs" value={String(overall.nFailed)} />
             </div>
+            <div className="mt-3">
+              <DistributionGrid results={report.data.bases.flatMap((b) => b.results)} />
+            </div>
           </div>
 
           {report.data.bases.map((b) => {
@@ -110,6 +114,11 @@ export function BatchDetail() {
                   <StatTile label="Mean fix rate" value={b.summary.mean_fix_rate_pct != null ? `${b.summary.mean_fix_rate_pct.toFixed(1)}%` : "—"} />
                   <StatTile label="Failed runs" value={String(b.summary.n_failed)} />
                 </div>
+                {isOpen && (
+                  <div className="mb-3">
+                    <DistributionGrid results={b.results} />
+                  </div>
+                )}
                 {isOpen && (
                   <table className="w-full text-left text-sm">
                     <thead>

@@ -5,6 +5,10 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { BatchDetail } from "./BatchDetail";
 import { client } from "../api/client";
 
+vi.mock("react-plotly.js", () => ({
+  default: ({ data }: any) => <div data-testid="plot">{data[0]?.x?.length ?? 0} values</div>,
+}));
+
 function wrap(id: string) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -60,9 +64,13 @@ describe("BatchDetail", () => {
     await waitFor(() => expect(screen.getByText("base-0")).toBeInTheDocument());
     // overall "All bases" stats visible before expanding any base
     expect(screen.getByText("All bases")).toBeInTheDocument();
+    // overall distribution grid: 4 histograms (fix rate + 3 RMS), 2 successful jobs each
+    expect(screen.getAllByTestId("plot")).toHaveLength(4);
     expect(screen.queryByText("j-best")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /base-0/ }));
     await waitFor(() => expect(screen.getByText("j-best")).toBeInTheDocument());
+    // per-base distribution grid adds 4 more histograms (8 total: overall + base-0)
+    expect(screen.getAllByTestId("plot")).toHaveLength(8);
     expect(screen.getAllByText(/95/).length).toBeGreaterThan(0);
     // config summary column (finding 1): config_idx + compact one-line summary
     expect(screen.getByText(/#1/)).toBeInTheDocument();
