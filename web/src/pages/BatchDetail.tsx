@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
@@ -83,8 +83,12 @@ export function BatchDetail() {
                 </thead>
                 <tbody>
                   {b.results.map((r) => (
-                    <tr key={r.job_id} className="border-t border-hair">
-                      <td className="tnum py-1 pr-2">{r.job_id}</td>
+                    <tr key={r.job_id} className="border-t border-hair hover:bg-white/5">
+                      <td className="tnum py-1 pr-2">
+                        <Link to={`/jobs/${r.job_id}`} className="hover:underline">
+                          {r.job_id}
+                        </Link>
+                      </td>
                       <td className="py-1 pr-2 text-xs text-muted">{summarizeConfig(r.config_idx, r.config)}</td>
                       <td className="py-1 pr-2">
                         <StatusBadge status={r.status} />
