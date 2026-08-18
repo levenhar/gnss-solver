@@ -33,3 +33,19 @@ def is_rinex_obs(path: Path) -> bool:
         return False
     # File type is the char at column 21 (0-indexed 20) in RINEX header.
     return first[20:21].upper() == "O"
+
+
+def is_rinex_nav(path: Path) -> bool:
+    with path.open("r", encoding="ascii", errors="replace") as fh:
+        first = fh.readline()
+    if "RINEX VERSION / TYPE" not in first:
+        return False
+    # "N" = GPS/mixed nav (RINEX3), "G" = GLONASS nav (RINEX2).
+    return first[20:21].upper() in ("N", "G")
+
+
+def is_sp3(path: Path) -> bool:
+    with path.open("r", encoding="ascii", errors="replace") as fh:
+        first = fh.readline()
+    # SP3 header line 1: "#" + version char (a-d) + pos/vel flag (P/V).
+    return bool(re.match(r"^#[a-dA-D][PV]", first))
