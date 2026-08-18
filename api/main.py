@@ -256,6 +256,7 @@ def batch_report(batch_id: str) -> BatchReportResponse:
             if mean_lat is not None and mean_lon is not None:
                 positions.append((len(entries) - 1, mean_lat, mean_lon))
 
+        # Must run before entries.sort() below: positions holds pre-sort indices into entries.
         if positions:
             ref_lat = statistics.mean(p[1] for p in positions)
             ref_lon = statistics.mean(p[2] for p in positions)

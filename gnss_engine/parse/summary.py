@@ -33,6 +33,8 @@ def summarize(epochs: list[Epoch]) -> SolutionSummary:
         rms_sdn=_rms(sdn),
         rms_sde=_rms(sde),
         rms_sdu=_rms(sdu),
+        # None (not 0.0) on empty epochs: (0, 0) is a real point and must not
+        # silently pollute a batch's cross-job UTM reference average.
         mean_lat=_mean([e.lat for e in epochs]) if epochs else None,
         mean_lon=_mean([e.lon for e in epochs]) if epochs else None,
         mean_h=_mean([e.h for e in epochs]) if epochs else None,
