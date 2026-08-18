@@ -4,9 +4,9 @@ import { PlotlyChart } from "./PlotlyChart";
 
 const METRICS: { key: keyof BatchReportEntry; title: string; color: string; decimals: number }[] = [
   { key: "fix_rate_pct", title: "fix rate (%)", color: "#38bdf8", decimals: 1 },
-  { key: "rms_sdn", title: "RMS N (m)", color: "#16a34a", decimals: 3 },
-  { key: "rms_sde", title: "RMS E (m)", color: "#eab308", decimals: 3 },
-  { key: "rms_sdu", title: "RMS U (m)", color: "#2563eb", decimals: 3 },
+  { key: "utm_e", title: "easting (m)", color: "#16a34a", decimals: 3 },
+  { key: "utm_n", title: "northing (m)", color: "#eab308", decimals: 3 },
+  { key: "mean_h", title: "height (m)", color: "#2563eb", decimals: 3 },
 ];
 
 function mean(values: number[]): number {

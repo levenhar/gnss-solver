@@ -91,6 +91,9 @@ export interface BatchReportEntry {
   rms_sdn: number | null;
   rms_sde: number | null;
   rms_sdu: number | null;
+  utm_e: number | null;
+  utm_n: number | null;
+  mean_h: number | null;
   error_type: string | null;
   error_message: string | null;
 }

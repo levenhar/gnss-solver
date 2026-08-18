@@ -48,12 +48,14 @@ describe("BatchDetail", () => {
             job_id: "j-best", config_idx: 1,
             config: { mode: "static", frequency: "l1+l2", ambiguity: "continuous", elev_mask_deg: 15, ar_ratio_min: 3.0 },
             status: "finished", fix_rate_pct: 95, rms_sdn: 0.1, rms_sde: 0.1, rms_sdu: 0.2,
+            utm_e: 500000, utm_n: 3500000, mean_h: 50,
             error_type: null, error_message: null,
           },
           {
             job_id: "j-worse", config_idx: 0,
             config: { mode: "kinematic", frequency: "l1", ambiguity: "off", elev_mask_deg: 10, ar_ratio_min: 2.5 },
             status: "finished", fix_rate_pct: 60, rms_sdn: 0.3, rms_sde: 0.3, rms_sdu: 0.4,
+            utm_e: 500010, utm_n: 3500010, mean_h: 52,
             error_type: null, error_message: null,
           },
         ],
@@ -95,6 +97,7 @@ describe("BatchDetail", () => {
           {
             job_id: "j-fail", config_idx: 0, config: {}, status: "failed",
             fix_rate_pct: null, rms_sdn: null, rms_sde: null, rms_sdu: null,
+            utm_e: null, utm_n: null, mean_h: null,
             error_type: "RtklibExecError", error_message: "boom",
           },
         ],
