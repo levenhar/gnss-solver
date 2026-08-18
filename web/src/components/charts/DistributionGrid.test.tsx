@@ -39,19 +39,19 @@ describe("DistributionGrid", () => {
     expect(screen.getByText(/^RMS U \(m\)/i)).toBeInTheDocument();
   });
 
-  it("shows the std dev of each metric's values next to its header", () => {
+  it("shows the mean and std dev of each metric's values next to its header", () => {
     const results: BatchReportEntry[] = [
       entry({ job_id: "j1", fix_rate_pct: 80, rms_sdn: 0.1 }),
       entry({ job_id: "j2", fix_rate_pct: 100, rms_sdn: 0.3 }),
     ];
     render(<DistributionGrid results={results} />);
     // fix_rate_pct: [80, 100] -> mean 90, population std = 10
-    expect(screen.getByText(/^fix rate \(%\) · σ 10\.0$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^fix rate \(%\) · μ 90\.0 · σ 10\.0$/i)).toBeInTheDocument();
     // rms_sdn: [0.1, 0.3] -> mean 0.2, population std = 0.1
-    expect(screen.getByText(/^RMS N \(m\) · σ 0\.100$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^RMS N \(m\) · μ 0\.200 · σ 0\.100$/i)).toBeInTheDocument();
   });
 
-  it("omits the std dev suffix for a metric with zero successful values", () => {
+  it("omits the mean/std dev suffix for a metric with zero successful values", () => {
     const results: BatchReportEntry[] = [entry({ job_id: "j1", fix_rate_pct: null })];
     render(<DistributionGrid results={results} />);
     expect(screen.getByText(/^fix rate \(%\)$/i)).toBeInTheDocument();

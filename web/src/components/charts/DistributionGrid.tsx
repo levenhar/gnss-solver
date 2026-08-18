@@ -9,10 +9,14 @@ const METRICS: { key: keyof BatchReportEntry; title: string; color: string; deci
   { key: "rms_sdu", title: "RMS U (m)", color: "#2563eb", decimals: 3 },
 ];
 
+function mean(values: number[]): number {
+  return values.length === 0 ? 0 : values.reduce((a, v) => a + v, 0) / values.length;
+}
+
 function stdDev(values: number[]): number {
   if (values.length === 0) return 0;
-  const mean = values.reduce((a, v) => a + v, 0) / values.length;
-  const variance = values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length;
+  const m = mean(values);
+  const variance = values.reduce((a, v) => a + (v - m) ** 2, 0) / values.length;
   return Math.sqrt(variance);
 }
 
@@ -31,7 +35,8 @@ export function DistributionGrid({ results }: { results: BatchReportEntry[] }) {
         <div key={m.title} className="rounded-md border border-hair p-2">
           <div className="mb-1 text-xs text-muted">
             {m.title.toUpperCase()}
-            {m.values.length > 0 && ` · σ ${stdDev(m.values).toFixed(m.decimals)}`}
+            {m.values.length > 0 &&
+              ` · μ ${mean(m.values).toFixed(m.decimals)} · σ ${stdDev(m.values).toFixed(m.decimals)}`}
           </div>
           {m.values.length ? (
             <PlotlyChart
