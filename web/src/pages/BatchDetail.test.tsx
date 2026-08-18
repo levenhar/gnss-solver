@@ -40,8 +40,18 @@ describe("BatchDetail", () => {
       bases: [{
         base_id: "base-0",
         results: [
-          { job_id: "j-best", config_idx: 1, config: {}, status: "finished", fix_rate_pct: 95, rms_sdn: 0.1, rms_sde: 0.1, rms_sdu: 0.2 },
-          { job_id: "j-worse", config_idx: 0, config: {}, status: "finished", fix_rate_pct: 60, rms_sdn: 0.3, rms_sde: 0.3, rms_sdu: 0.4 },
+          {
+            job_id: "j-best", config_idx: 1,
+            config: { mode: "static", frequency: "l1+l2", ambiguity: "continuous", elev_mask_deg: 15, ar_ratio_min: 3.0 },
+            status: "finished", fix_rate_pct: 95, rms_sdn: 0.1, rms_sde: 0.1, rms_sdu: 0.2,
+            error_type: null, error_message: null,
+          },
+          {
+            job_id: "j-worse", config_idx: 0,
+            config: { mode: "kinematic", frequency: "l1", ambiguity: "off", elev_mask_deg: 10, ar_ratio_min: 2.5 },
+            status: "finished", fix_rate_pct: 60, rms_sdn: 0.3, rms_sde: 0.3, rms_sdu: 0.4,
+            error_type: null, error_message: null,
+          },
         ],
         summary: { best_job_id: "j-best", best_fix_rate_pct: 95, worst_fix_rate_pct: 60, mean_fix_rate_pct: 77.5, median_fix_rate_pct: 77.5, n_failed: 0 },
       }],
@@ -50,5 +60,49 @@ describe("BatchDetail", () => {
     await waitFor(() => expect(screen.getByText("j-best")).toBeInTheDocument());
     expect(screen.getAllByText(/95/).length).toBeGreaterThan(0);
     expect(screen.getByText("base-0")).toBeInTheDocument();
+    // config summary column (finding 1): config_idx + compact one-line summary
+    expect(screen.getByText(/#1/)).toBeInTheDocument();
+    expect(screen.getByText(/static/)).toBeInTheDocument();
+    expect(screen.getByText(/l1\+l2/)).toBeInTheDocument();
+    expect(screen.getByText(/continuous/)).toBeInTheDocument();
+    expect(screen.getByText(/el15/)).toBeInTheDocument();
+    expect(screen.getByText(/ar3/)).toBeInTheDocument();
+  });
+
+  it("shows error type/message inline for a failed row", async () => {
+    vi.spyOn(client, "getBatch").mockResolvedValue({
+      batch_id: "b1", status: "finished",
+      bases: [{ base_id: "base-0", done: 1, total: 1, failed: 1 }],
+      done: 1, total: 1,
+    });
+    vi.spyOn(client, "getBatchReport").mockResolvedValue({
+      batch_id: "b1",
+      bases: [{
+        base_id: "base-0",
+        results: [
+          {
+            job_id: "j-fail", config_idx: 0, config: {}, status: "failed",
+            fix_rate_pct: null, rms_sdn: null, rms_sde: null, rms_sdu: null,
+            error_type: "RtklibExecError", error_message: "boom",
+          },
+        ],
+        summary: { best_job_id: null, best_fix_rate_pct: null, worst_fix_rate_pct: null, mean_fix_rate_pct: null, median_fix_rate_pct: null, n_failed: 1 },
+      }],
+    });
+    wrap("b1");
+    await waitFor(() => expect(screen.getByText("j-fail")).toBeInTheDocument());
+    expect(screen.getByText("RtklibExecError")).toBeInTheDocument();
+    expect(screen.getByText("boom")).toBeInTheDocument();
+  });
+
+  it("shows an error message if the report query fails once finished", async () => {
+    vi.spyOn(client, "getBatch").mockResolvedValue({
+      batch_id: "b1", status: "finished",
+      bases: [{ base_id: "base-0", done: 1, total: 1, failed: 0 }],
+      done: 1, total: 1,
+    });
+    vi.spyOn(client, "getBatchReport").mockRejectedValue(new Error("network down"));
+    wrap("b1");
+    await waitFor(() => expect(screen.getByText(/failed to load report/i)).toBeInTheDocument());
   });
 });

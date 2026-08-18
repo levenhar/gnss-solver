@@ -3,6 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { client } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 
+function summarizeConfig(configIdx: number, config: Record<string, unknown>): string {
+  const mode = config.mode ?? "—";
+  const frequency = config.frequency ?? "—";
+  const ambiguity = config.ambiguity ?? "—";
+  const elev = config.elev_mask_deg;
+  const elevStr = typeof elev === "number" ? `el${elev.toFixed(0)}°` : "el—";
+  const ar = config.ar_ratio_min;
+  const arStr = typeof ar === "number" ? `ar${ar.toFixed(1)}` : "ar—";
+  return `#${configIdx}: ${mode} / ${frequency} / ${ambiguity} / ${elevStr} / ${arStr}`;
+}
+
 export function BatchDetail() {
   const { id = "" } = useParams();
   const status = useQuery({
@@ -33,6 +44,10 @@ export function BatchDetail() {
         <p className="text-muted">Processing… polling for completion.</p>
       )}
 
+      {finished && report.isError && (
+        <p className="text-sm text-red-400">Failed to load report.</p>
+      )}
+
       {finished && report.data && (
         <div className="space-y-6">
           {report.data.bases.map((b) => (
@@ -60,6 +75,7 @@ export function BatchDetail() {
                 <thead>
                   <tr className="text-muted">
                     <th className="py-1 pr-2">Job</th>
+                    <th className="py-1 pr-2">Config</th>
                     <th className="py-1 pr-2">Status</th>
                     <th className="py-1 pr-2">Fix rate</th>
                     <th className="py-1 pr-2">RMS N/E/U</th>
@@ -69,7 +85,16 @@ export function BatchDetail() {
                   {b.results.map((r) => (
                     <tr key={r.job_id} className="border-t border-hair">
                       <td className="tnum py-1 pr-2">{r.job_id}</td>
-                      <td className="py-1 pr-2"><StatusBadge status={r.status} /></td>
+                      <td className="py-1 pr-2 text-xs text-muted">{summarizeConfig(r.config_idx, r.config)}</td>
+                      <td className="py-1 pr-2">
+                        <StatusBadge status={r.status} />
+                        {r.status === "failed" && (r.error_type || r.error_message) && (
+                          <div className="mt-1 text-xs text-red-400">
+                            {r.error_type && <span className="font-medium">{r.error_type}</span>}
+                            {r.error_message && <div className="text-red-400/80">{r.error_message}</div>}
+                          </div>
+                        )}
+                      </td>
                       <td className="tnum py-1 pr-2">{r.fix_rate_pct != null ? `${r.fix_rate_pct.toFixed(1)}%` : "—"}</td>
                       <td className="tnum py-1 pr-2">
                         {r.rms_sdn != null ? `${r.rms_sdn.toFixed(3)} / ${r.rms_sde!.toFixed(3)} / ${r.rms_sdu!.toFixed(3)}` : "—"}
