@@ -23,7 +23,7 @@ from api.schemas import (
     JobListItem,
     JobStatusResponse,
 )
-from gnss_engine.models.config import ProcessingConfig
+from gnss_engine.models.config import ProcessingConfig, SweepConfig
 from gnss_engine.sweep import random_sweep
 from rq.job import Job
 from rq.exceptions import NoSuchJobError
@@ -106,6 +106,7 @@ async def create_batch(
     rover: UploadFile = File(...),
     nav: list[UploadFile] = File(...),
     base: list[UploadFile] = File(...),
+    sweep_config: str = Form(...),
     n_configs: int = Form(100),
 ) -> BatchCreated:
     if not nav:
@@ -114,6 +115,10 @@ async def create_batch(
         raise HTTPException(status_code=422, detail="at least one base file is required")
     if not 1 <= n_configs <= 200:
         raise HTTPException(status_code=422, detail="n_configs must be between 1 and 200")
+    try:
+        sweep = SweepConfig.model_validate_json(sweep_config)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=f"invalid sweep_config: {exc}") from exc
     if len(base) * n_configs > MAX_TOTAL_BATCH_JOBS:
         raise HTTPException(
             status_code=422,
@@ -127,7 +132,7 @@ async def create_batch(
     rover_filename = rover.filename or "rover.rnx"
     rover_bytes = await rover.read()
     nav_uploads = [(nf.filename or "nav", await nf.read()) for nf in nav]
-    configs = random_sweep(n=n_configs)
+    configs = random_sweep(sweep=sweep, n=n_configs)
     queue = get_queue()
 
     bases_manifest = []
@@ -151,6 +156,7 @@ async def create_batch(
         "batch_id": batch_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "n_configs": n_configs,
+        "sweep_config": sweep.model_dump(mode="json"),
         "bases": bases_manifest,
     })
     return BatchCreated(batch_id=batch_id, status="queued", n_bases=len(base), n_configs=n_configs)

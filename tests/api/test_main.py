@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 import api.main as main_mod
 from api import jobstore
 from api.schemas import ErrorInfo
+from gnss_engine.models.config import Constellation
 
 
 @pytest.fixture
@@ -98,7 +99,7 @@ def test_list_jobs(client):
 
 def test_list_jobs_excludes_batch_member_jobs(client):
     jobstore.write_solution("standalone", {"summary": {}})
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "2"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("2"))
     manifest = jobstore.read_batch_manifest(resp.json()["batch_id"])
     batch_job_ids = {j["job_id"] for j in manifest["bases"][0]["jobs"]}
 
@@ -118,8 +119,18 @@ def _batch_files(n_bases=2):
     return files
 
 
+def _sweep_config_json(**overrides) -> str:
+    payload = {"mode": "static"}
+    payload.update(overrides)
+    return json.dumps(payload)
+
+
+def _batch_data(n_configs, **sweep_overrides) -> dict:
+    return {"n_configs": str(n_configs), "sweep_config": _sweep_config_json(**sweep_overrides)}
+
+
 def test_post_batch_creates_jobs_for_every_base_and_config(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=2), data={"n_configs": "3"})
+    resp = client.post("/batches", files=_batch_files(n_bases=2), data=_batch_data("3"))
     assert resp.status_code == 201
     body = resp.json()
     assert body["status"] == "queued"
@@ -143,12 +154,12 @@ def test_post_batch_requires_at_least_one_base(client):
 
 
 def test_post_batch_rejects_out_of_range_n_configs(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "0"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("0"))
     assert resp.status_code == 422
 
 
 def test_post_batch_writes_created_at_to_manifest(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "1"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("1"))
     bid = resp.json()["batch_id"]
     manifest = jobstore.read_batch_manifest(bid)
     assert manifest.get("created_at")
@@ -156,18 +167,18 @@ def test_post_batch_writes_created_at_to_manifest(client):
 
 def test_post_batch_accepts_fanout_at_cap(client, monkeypatch):
     monkeypatch.setattr(main_mod, "MAX_TOTAL_BATCH_JOBS", 4)
-    resp = client.post("/batches", files=_batch_files(n_bases=2), data={"n_configs": "2"})
+    resp = client.post("/batches", files=_batch_files(n_bases=2), data=_batch_data("2"))
     assert resp.status_code == 201
 
 
 def test_post_batch_rejects_fanout_over_cap(client, monkeypatch):
     monkeypatch.setattr(main_mod, "MAX_TOTAL_BATCH_JOBS", 4)
-    resp = client.post("/batches", files=_batch_files(n_bases=2), data={"n_configs": "3"})
+    resp = client.post("/batches", files=_batch_files(n_bases=2), data=_batch_data("3"))
     assert resp.status_code == 422
 
 
 def test_batch_status_aggregates_children(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "2"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("2"))
     bid = resp.json()["batch_id"]
     manifest = jobstore.read_batch_manifest(bid)
     job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
@@ -183,7 +194,7 @@ def test_batch_status_aggregates_children(client):
 
 
 def test_batch_status_running_while_incomplete(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "2"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("2"))
     bid = resp.json()["batch_id"]
     manifest = jobstore.read_batch_manifest(bid)
     job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
@@ -198,14 +209,14 @@ def test_batch_status_404_when_unknown(client):
 
 
 def test_list_batches(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "1"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("1"))
     bid = resp.json()["batch_id"]
     items = client.get("/batches").json()
     assert any(i["batch_id"] == bid for i in items)
 
 
 def test_batch_report_ranks_by_fix_rate_and_summarizes(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "3"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("3"))
     bid = resp.json()["batch_id"]
     manifest = jobstore.read_batch_manifest(bid)
     job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
@@ -232,7 +243,7 @@ def test_batch_report_ranks_by_fix_rate_and_summarizes(client):
 
 
 def test_batch_report_all_failed_base_has_none_summary_no_crash(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "3"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("3"))
     bid = resp.json()["batch_id"]
     manifest = jobstore.read_batch_manifest(bid)
     job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
@@ -256,7 +267,7 @@ def test_batch_report_404_when_unknown(client):
 
 
 def test_batch_report_failed_entry_includes_error_info(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "1"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("1"))
     bid = resp.json()["batch_id"]
     manifest = jobstore.read_batch_manifest(bid)
     jid = manifest["bases"][0]["jobs"][0]["job_id"]
@@ -270,7 +281,7 @@ def test_batch_report_failed_entry_includes_error_info(client):
 
 
 def test_batch_report_finished_entry_has_no_error_info(client):
-    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "1"})
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("1"))
     bid = resp.json()["batch_id"]
     manifest = jobstore.read_batch_manifest(bid)
     jid = manifest["bases"][0]["jobs"][0]["job_id"]
@@ -281,3 +292,61 @@ def test_batch_report_finished_entry_has_no_error_info(client):
     assert entry["status"] == "finished"
     assert entry["error_type"] is None
     assert entry["error_message"] is None
+
+
+def test_post_batch_requires_sweep_config(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={"n_configs": "1"})
+    assert resp.status_code == 422
+
+
+def test_post_batch_rejects_invalid_sweep_config(client):
+    resp = client.post(
+        "/batches",
+        files=_batch_files(n_bases=1),
+        data={"n_configs": "1", "sweep_config": "not-json"},
+    )
+    assert resp.status_code == 422
+
+
+def test_post_batch_rejects_sweep_config_min_greater_than_max(client):
+    resp = client.post(
+        "/batches",
+        files=_batch_files(n_bases=1),
+        data={"n_configs": "1", "sweep_config": _sweep_config_json(elev_mask_range=[80.0, 10.0])},
+    )
+    assert resp.status_code == 422
+
+
+def test_post_batch_manifest_stores_sweep_config(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("1"))
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    assert manifest["sweep_config"]["mode"] == "static"
+
+
+def test_post_batch_applies_sweep_config_bounds_to_generated_jobs(client):
+    # NOTE: deviates from the brief's literal `constellation_pool=[]` — SweepConfig
+    # (Task 1) validates all pool fields, including constellation_pool, as non-empty
+    # (see test_sweep_config_pools_reject_empty in tests/models/test_config.py), so an
+    # empty pool 422s rather than producing GPS-only configs. Using a single-item pool
+    # instead, matching how tests/test_sweep.py itself verifies constellation bounding
+    # (GPS always present, other members drawn only from the pool).
+    resp = client.post(
+        "/batches",
+        files=_batch_files(n_bases=1),
+        data=_batch_data(
+            "5",
+            mode="kinematic",
+            elev_mask_range=[10.0, 20.0],
+            constellation_pool=["GLO"],
+        ),
+    )
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
+    for jid in job_ids:
+        cfg = jobstore.read_config(jid)
+        assert cfg.mode.value == "kinematic"
+        assert 10.0 <= cfg.elev_mask_deg <= 20.0
+        assert Constellation.GPS in cfg.constellations
+        assert set(cfg.constellations) <= {Constellation.GPS, Constellation.GLO}
