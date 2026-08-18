@@ -22,10 +22,11 @@ export function DistributionGrid({ results }: { results: BatchReportEntry[] }) {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {byMetric.map((m) => (
         <div key={m.title} className="rounded-md border border-hair p-2">
+          <div className="mb-1 text-xs uppercase text-muted">{m.title}</div>
           {m.values.length ? (
             <PlotlyChart
               data={distributionData(m.values, m.color)}
-              layout={{ xaxis: { title: m.title }, yaxis: { title: "count" } }}
+              layout={{ yaxis: { title: "count" } }}
               height={220}
             />
           ) : (

@@ -30,6 +30,15 @@ describe("DistributionGrid", () => {
     expect(plots[0]).toHaveTextContent("2 values"); // fix rate: 2 successful jobs
   });
 
+  it("shows a header with the metric name above each chart", () => {
+    const results: BatchReportEntry[] = [entry({ job_id: "j1" })];
+    render(<DistributionGrid results={results} />);
+    expect(screen.getByText("fix rate (%)")).toBeInTheDocument();
+    expect(screen.getByText("RMS N (m)")).toBeInTheDocument();
+    expect(screen.getByText("RMS E (m)")).toBeInTheDocument();
+    expect(screen.getByText("RMS U (m)")).toBeInTheDocument();
+  });
+
   it("shows 'no data' for a metric with zero successful values", () => {
     const results: BatchReportEntry[] = [
       entry({ job_id: "j1", fix_rate_pct: null }),
