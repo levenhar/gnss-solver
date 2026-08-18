@@ -42,3 +42,7 @@ export function skyplotData(sol: Solution): Partial<Data>[] {
     marker: { size: 7, color: sol.sat_stats.map((s) => s.snr), colorscale: "Viridis", showscale: true, colorbar: { title: "SNR" } },
   }];
 }
+
+export function distributionData(values: number[], color: string): Partial<Data>[] {
+  return [{ x: values, type: "histogram", marker: { color } }];
+}

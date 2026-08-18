@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groundTrackData, heightTimeData, satCountData, arRatioData, residualData, skyplotData } from "./chartData";
+import { groundTrackData, heightTimeData, satCountData, arRatioData, residualData, skyplotData, distributionData } from "./chartData";
 import type { Solution } from "../api/types";
 
 const sol = {
@@ -27,5 +27,18 @@ describe("chartData", () => {
     expect(residualData(sol).length).toBeGreaterThan(0);
     const sky = skyplotData(sol);
     expect((sky[0].r as number[])[0]).toBeCloseTo(45); // 90 - el
+  });
+});
+
+describe("distributionData", () => {
+  it("builds a single histogram trace from the values", () => {
+    const traces = distributionData([1, 2, 3], "#38bdf8");
+    expect(traces).toHaveLength(1);
+    expect(traces[0]).toMatchObject({ x: [1, 2, 3], type: "histogram", marker: { color: "#38bdf8" } });
+  });
+
+  it("handles an empty array", () => {
+    const traces = distributionData([], "#38bdf8");
+    expect(traces[0].x).toEqual([]);
   });
 });
