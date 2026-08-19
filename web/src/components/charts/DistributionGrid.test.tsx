@@ -19,22 +19,22 @@ function entry(overrides: Partial<BatchReportEntry>): BatchReportEntry {
 }
 
 describe("DistributionGrid", () => {
-  it("renders 4 histograms with only successful values", () => {
+  it("renders 3 histograms with only successful values", () => {
     const results: BatchReportEntry[] = [
-      entry({ job_id: "j1", fix_rate_pct: 90, utm_e: 500000 }),
-      entry({ job_id: "j2", fix_rate_pct: 80, utm_e: 500010 }),
+      entry({ job_id: "j1", utm_e: 500000 }),
+      entry({ job_id: "j2", utm_e: 500010 }),
       entry({ job_id: "j3", status: "failed", fix_rate_pct: null, utm_e: null, utm_n: null, mean_h: null }),
     ];
     render(<DistributionGrid results={results} />);
     const plots = screen.getAllByTestId("plot");
-    expect(plots).toHaveLength(4);
-    expect(plots[0]).toHaveTextContent("2 values"); // fix rate: 2 successful jobs
+    expect(plots).toHaveLength(3);
+    expect(plots[0]).toHaveTextContent("2 values"); // easting: 2 successful jobs
   });
 
   it("shows a header with the metric name above each chart", () => {
     const results: BatchReportEntry[] = [entry({ job_id: "j1" })];
     render(<DistributionGrid results={results} />);
-    expect(screen.getByText(/^fix rate \(%\)/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^fix rate \(%\)/i)).not.toBeInTheDocument();
     expect(screen.getByText(/^easting \(m\)/i)).toBeInTheDocument();
     expect(screen.getByText(/^northing \(m\)/i)).toBeInTheDocument();
     expect(screen.getByText(/^height \(m\)/i)).toBeInTheDocument();
@@ -42,25 +42,23 @@ describe("DistributionGrid", () => {
 
   it("shows the mean and std dev of each metric's values next to its header", () => {
     const results: BatchReportEntry[] = [
-      entry({ job_id: "j1", fix_rate_pct: 80, utm_e: 500000 }),
-      entry({ job_id: "j2", fix_rate_pct: 100, utm_e: 500020 }),
+      entry({ job_id: "j1", utm_e: 500000 }),
+      entry({ job_id: "j2", utm_e: 500020 }),
     ];
     render(<DistributionGrid results={results} />);
-    // fix_rate_pct: [80, 100] -> mean 90, population std = 10
-    expect(screen.getByText(/^fix rate \(%\) · μ 90\.0 · σ 10\.0$/i)).toBeInTheDocument();
     // utm_e: [500000, 500020] -> mean 500010, population std = 10
     expect(screen.getByText(/^easting \(m\) · μ 500010\.000 · σ 10\.000$/i)).toBeInTheDocument();
   });
 
   it("omits the mean/std dev suffix for a metric with zero successful values", () => {
-    const results: BatchReportEntry[] = [entry({ job_id: "j1", fix_rate_pct: null })];
+    const results: BatchReportEntry[] = [entry({ job_id: "j1", utm_e: null })];
     render(<DistributionGrid results={results} />);
-    expect(screen.getByText(/^fix rate \(%\)$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^easting \(m\)$/i)).toBeInTheDocument();
   });
 
   it("shows 'no data' for a metric with zero successful values", () => {
     const results: BatchReportEntry[] = [
-      entry({ job_id: "j1", fix_rate_pct: null }),
+      entry({ job_id: "j1", utm_e: null }),
     ];
     render(<DistributionGrid results={results} />);
     expect(screen.getByText(/no data/i)).toBeInTheDocument();

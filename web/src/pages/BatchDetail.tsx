@@ -4,8 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { client } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
-import type { BatchBaseReport } from "../api/types";
+import type { BatchReportEntry } from "../api/types";
 import { DistributionGrid } from "../components/charts/DistributionGrid";
+import { BatchResultScatter } from "../components/charts/BatchResultScatter";
+import { mean, range } from "../lib/stats";
 
 function summarizeConfig(configIdx: number, config: Record<string, unknown>): string {
   const mode = config.mode ?? "—";
@@ -27,15 +29,36 @@ function StatTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function computeOverallSummary(bases: BatchBaseReport[]) {
-  const fixRates = bases.flatMap((b) => b.results.map((r) => r.fix_rate_pct).filter((v): v is number => v != null));
-  const nFailed = bases.reduce((sum, b) => sum + b.summary.n_failed, 0);
+function successfulNumeric(results: BatchReportEntry[], key: "utm_e" | "utm_n" | "mean_h"): number[] {
+  return results
+    .filter((r) => r.status !== "failed")
+    .map((r) => r[key])
+    .filter((v): v is number => typeof v === "number");
+}
+
+function computeCoordStats(results: BatchReportEntry[]) {
+  const e = successfulNumeric(results, "utm_e");
+  const n = successfulNumeric(results, "utm_n");
+  const h = successfulNumeric(results, "mean_h");
   return {
-    best: fixRates.length ? Math.max(...fixRates) : null,
-    worst: fixRates.length ? Math.min(...fixRates) : null,
-    mean: fixRates.length ? fixRates.reduce((a, v) => a + v, 0) / fixRates.length : null,
-    nFailed,
+    avgE: mean(e), avgN: mean(n), avgH: mean(h),
+    rangeE: range(e), rangeN: range(n), rangeH: range(h),
+    hasE: e.length > 0, hasN: n.length > 0, hasH: h.length > 0,
   };
+}
+
+function CoordStatTiles({ results }: { results: BatchReportEntry[] }) {
+  const s = computeCoordStats(results);
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <StatTile label="Avg easting" value={s.hasE ? `${s.avgE.toFixed(3)} m` : "—"} />
+      <StatTile label="Avg northing" value={s.hasN ? `${s.avgN.toFixed(3)} m` : "—"} />
+      <StatTile label="Avg height" value={s.hasH ? `${s.avgH.toFixed(3)} m` : "—"} />
+      <StatTile label="Range easting" value={s.hasE ? `${s.rangeE.toFixed(3)} m` : "—"} />
+      <StatTile label="Range northing" value={s.hasN ? `${s.rangeN.toFixed(3)} m` : "—"} />
+      <StatTile label="Range height" value={s.hasH ? `${s.rangeH.toFixed(3)} m` : "—"} />
+    </div>
+  );
 }
 
 export function BatchDetail() {
@@ -58,7 +81,7 @@ export function BatchDetail() {
       next.has(baseId) ? next.delete(baseId) : next.add(baseId);
       return next;
     });
-  const overall = useMemo(() => (report.data ? computeOverallSummary(report.data.bases) : null), [report.data]);
+  const allResults = useMemo(() => (report.data ? report.data.bases.flatMap((b) => b.results) : []), [report.data]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -80,18 +103,16 @@ export function BatchDetail() {
         <p className="text-sm text-red-400">Failed to load report.</p>
       )}
 
-      {finished && report.data && overall && (
+      {finished && report.data && (
         <div className="space-y-6">
           <div className="rounded-lg border border-hair bg-panel p-4">
             <h3 className="mb-2 text-sm font-semibold">All bases</h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatTile label="Best fix rate" value={overall.best != null ? `${overall.best.toFixed(1)}%` : "—"} />
-              <StatTile label="Worst fix rate" value={overall.worst != null ? `${overall.worst.toFixed(1)}%` : "—"} />
-              <StatTile label="Mean fix rate" value={overall.mean != null ? `${overall.mean.toFixed(1)}%` : "—"} />
-              <StatTile label="Failed runs" value={String(overall.nFailed)} />
+            <CoordStatTiles results={allResults} />
+            <div className="mt-3">
+              <DistributionGrid results={allResults} />
             </div>
             <div className="mt-3">
-              <DistributionGrid results={report.data.bases.flatMap((b) => b.results)} />
+              <BatchResultScatter results={allResults} />
             </div>
           </div>
 
@@ -108,11 +129,8 @@ export function BatchDetail() {
                   {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   <h3 className="text-sm font-semibold">{b.base_id}</h3>
                 </button>
-                <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <StatTile label="Best fix rate" value={b.summary.best_fix_rate_pct != null ? `${b.summary.best_fix_rate_pct.toFixed(1)}%` : "—"} />
-                  <StatTile label="Worst fix rate" value={b.summary.worst_fix_rate_pct != null ? `${b.summary.worst_fix_rate_pct.toFixed(1)}%` : "—"} />
-                  <StatTile label="Mean fix rate" value={b.summary.mean_fix_rate_pct != null ? `${b.summary.mean_fix_rate_pct.toFixed(1)}%` : "—"} />
-                  <StatTile label="Failed runs" value={String(b.summary.n_failed)} />
+                <div className="mb-3">
+                  <CoordStatTiles results={b.results} />
                 </div>
                 {isOpen && (
                   <div className="mb-3">

@@ -66,13 +66,15 @@ describe("BatchDetail", () => {
     await waitFor(() => expect(screen.getByText("base-0")).toBeInTheDocument());
     // overall "All bases" stats visible before expanding any base
     expect(screen.getByText("All bases")).toBeInTheDocument();
-    // overall distribution grid: 4 histograms (fix rate + 3 RMS), 2 successful jobs each
+    expect(screen.getAllByText("Avg easting").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Range easting").length).toBeGreaterThan(0);
+    // overall: distribution grid (3 histograms) + result scatter (1 plot) = 4
     expect(screen.getAllByTestId("plot")).toHaveLength(4);
     expect(screen.queryByText("j-best")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /base-0/ }));
     await waitFor(() => expect(screen.getByText("j-best")).toBeInTheDocument());
-    // per-base distribution grid adds 4 more histograms (8 total: overall + base-0)
-    expect(screen.getAllByTestId("plot")).toHaveLength(8);
+    // per-base distribution grid adds 3 more histograms (7 total: overall(4) + base-0(3))
+    expect(screen.getAllByTestId("plot")).toHaveLength(7);
     expect(screen.getAllByText(/95/).length).toBeGreaterThan(0);
     // config summary column (finding 1): config_idx + compact one-line summary
     expect(screen.getByText(/#1/)).toBeInTheDocument();

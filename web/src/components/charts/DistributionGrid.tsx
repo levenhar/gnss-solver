@@ -1,24 +1,13 @@
 import type { BatchReportEntry } from "../../api/types";
 import { distributionData } from "../../lib/chartData";
+import { mean, stdDev } from "../../lib/stats";
 import { PlotlyChart } from "./PlotlyChart";
 
 const METRICS: { key: keyof BatchReportEntry; title: string; color: string; decimals: number }[] = [
-  { key: "fix_rate_pct", title: "fix rate (%)", color: "#38bdf8", decimals: 1 },
   { key: "utm_e", title: "easting (m)", color: "#16a34a", decimals: 3 },
   { key: "utm_n", title: "northing (m)", color: "#eab308", decimals: 3 },
   { key: "mean_h", title: "height (m)", color: "#2563eb", decimals: 3 },
 ];
-
-function mean(values: number[]): number {
-  return values.length === 0 ? 0 : values.reduce((a, v) => a + v, 0) / values.length;
-}
-
-function stdDev(values: number[]): number {
-  if (values.length === 0) return 0;
-  const m = mean(values);
-  const variance = values.reduce((a, v) => a + (v - m) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
-}
 
 export function DistributionGrid({ results }: { results: BatchReportEntry[] }) {
   const successful = results.filter((r) => r.status !== "failed");
@@ -30,7 +19,7 @@ export function DistributionGrid({ results }: { results: BatchReportEntry[] }) {
   if (byMetric.every((m) => m.values.length === 0)) return null;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {byMetric.map((m) => (
         <div key={m.title} className="rounded-md border border-hair p-2">
           <div className="mb-1 text-xs text-muted">
