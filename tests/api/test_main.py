@@ -55,6 +55,16 @@ def test_post_job_valid_enqueues(client):
     assert rover.name == "r.rnx"
 
 
+def test_post_job_records_created_at(client):
+    resp = client.post(
+        "/jobs",
+        files=_files(),
+        data={"config": json.dumps({"mode": "static"})},
+    )
+    jid = resp.json()["job_id"]
+    assert jobstore.read_job_created(jid) is not None
+
+
 def test_post_job_bad_config_is_422(client):
     resp = client.post(
         "/jobs",

@@ -97,6 +97,7 @@ async def create_job(
     if base is not None:
         jobstore.save_upload(job_id, "base", base.filename or "base.rnx", await base.read())
     jobstore.write_config(job_id, cfg)
+    jobstore.write_job_created(job_id)
 
     get_queue().enqueue("api.tasks.run_solve_job", job_id, job_id=job_id)
     return JobCreated(job_id=job_id, status="queued")

@@ -65,3 +65,30 @@ def test_list_batch_ids(data_env):
 
 def test_list_batch_ids_empty_when_no_batches_dir(data_env):
     assert jobstore.list_batch_ids() == []
+
+
+def test_job_created_roundtrip(data_env):
+    jid = "job-created"
+    assert jobstore.read_job_created(jid) is None
+    jobstore.write_job_created(jid)
+    created = jobstore.read_job_created(jid)
+    assert created is not None
+    assert created.endswith("+00:00")
+
+
+def test_delete_job_removes_directory(data_env):
+    jobstore.save_upload("j-del", "rover", "r.rnx", b"x")
+    assert jobstore.job_dir("j-del").exists()
+    jobstore.delete_job("j-del")
+    assert not jobstore.job_dir("j-del").exists()
+
+
+def test_delete_job_missing_dir_is_a_noop(data_env):
+    jobstore.delete_job("never-existed")  # must not raise
+
+
+def test_delete_batch_removes_directory(data_env):
+    jobstore.write_batch_manifest("b-del", {"batch_id": "b-del", "bases": []})
+    assert jobstore.batch_dir("b-del").exists()
+    jobstore.delete_batch("b-del")
+    assert not jobstore.batch_dir("b-del").exists()

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 
 from api.config import get_settings
@@ -87,6 +89,29 @@ def list_job_ids() -> list[str]:
     if not root.exists():
         return []
     return [d.name for d in root.iterdir() if d.is_dir()]
+
+
+def write_job_created(job_id: str) -> None:
+    d = job_dir(job_id)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "created.json").write_text(
+        json.dumps({"created_at": datetime.now(timezone.utc).isoformat()}), encoding="utf-8"
+    )
+
+
+def read_job_created(job_id: str) -> str | None:
+    p = job_dir(job_id) / "created.json"
+    if not p.exists():
+        return None
+    return json.loads(p.read_text(encoding="utf-8"))["created_at"]
+
+
+def delete_job(job_id: str) -> None:
+    shutil.rmtree(job_dir(job_id), ignore_errors=True)
+
+
+def delete_batch(batch_id: str) -> None:
+    shutil.rmtree(batch_dir(batch_id), ignore_errors=True)
 
 
 def _batches_root() -> Path:

@@ -31,6 +31,16 @@ services:
     depends_on:
       - redis
 
+  cleanup:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: python -m worker.cleanup
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - gnss-data:/data
+
   web:
     build:
       context: ../web
