@@ -1,15 +1,20 @@
-const STYLES: Record<string, string> = {
-  queued: "bg-slate-600/30 text-slate-300 border-slate-500/40",
-  started: "bg-accent/20 text-accent border-accent/40",
-  finished: "bg-green-600/20 text-green-400 border-green-500/40",
-  failed: "bg-red-600/20 text-red-400 border-red-500/40",
-  not_found: "bg-slate-700/30 text-slate-400 border-slate-600/40",
+const STYLES: Record<string, { cls: string; dot: string; live?: boolean }> = {
+  queued: { cls: "bg-white/[0.06] text-muted border-hairStrong", dot: "bg-faint" },
+  started: { cls: "bg-accent/15 text-accent border-accent/30", dot: "bg-accent", live: true },
+  finished: { cls: "bg-success/15 text-success border-success/30", dot: "bg-success" },
+  failed: { cls: "bg-danger/15 text-danger border-danger/30", dot: "bg-danger" },
+  not_found: { cls: "bg-white/[0.04] text-faint border-hair", dot: "bg-faint" },
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  const cls = STYLES[status] ?? STYLES.not_found;
+  const s = STYLES[status] ?? STYLES.not_found;
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${cls}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${s.cls}`}>
+      <span className={`relative flex h-1.5 w-1.5 rounded-full ${s.dot}`}>
+        {s.live && (
+          <span className={`absolute inline-flex h-full w-full animate-ping motion-reduce:animate-none rounded-full ${s.dot} opacity-75`} />
+        )}
+      </span>
       {status}
     </span>
   );

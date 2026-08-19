@@ -3,6 +3,7 @@ import type {
   IonoModel, AmbiguityMode, EphemerisSource, BaseCoordMode,
 } from "../api/types";
 import { Field } from "./Field";
+import { selCls, chipCls } from "./ui/inputStyles";
 
 const MODES: PositioningMode[] = ["static", "kinematic", "movingbase", "ppp-static", "ppp-kinematic"];
 const CONSTS: Constellation[] = ["GPS", "GLO", "GAL", "BDS", "QZSS", "SBAS"];
@@ -12,8 +13,6 @@ const IONOS: IonoModel[] = ["off", "broadcast", "sbas", "iono-free-lc", "estimat
 const ARS: AmbiguityMode[] = ["off", "continuous", "instantaneous", "fix-and-hold"];
 const EPHS: EphemerisSource[] = ["broadcast", "precise"];
 const BASEMODES: BaseCoordMode[] = ["single", "known-llh", "known-xyz"];
-
-const selCls = "w-full rounded-md border border-hair bg-base px-2 py-1.5 text-ink";
 
 export function ConfigForm({ value, onChange }: { value: ProcessingConfig; onChange: (v: ProcessingConfig) => void }) {
   const set = <K extends keyof ProcessingConfig>(k: K, v: ProcessingConfig[K]) => onChange({ ...value, [k]: v });
@@ -38,18 +37,17 @@ export function ConfigForm({ value, onChange }: { value: ProcessingConfig; onCha
         <span className="mb-1 block text-sm text-muted">Constellations</span>
         <div className="flex flex-wrap gap-2">
           {CONSTS.map((c) => (
-            <button type="button" key={c} onClick={() => toggleConst(c)}
-              className={`rounded-md border px-2.5 py-1 text-xs ${value.constellations.includes(c) ? "border-accent bg-accent/20 text-accent" : "border-hair text-muted"}`}>
+            <button type="button" key={c} onClick={() => toggleConst(c)} className={chipCls(value.constellations.includes(c))}>
               {c}
             </button>
           ))}
         </div>
       </div>
       <Field label={`Elevation mask: ${value.elev_mask_deg}°`}>
-        <input type="range" min={0} max={90} value={value.elev_mask_deg} onChange={(e) => set("elev_mask_deg", Number(e.target.value))} className="w-full" />
+        <input type="range" min={0} max={90} value={value.elev_mask_deg} onChange={(e) => set("elev_mask_deg", Number(e.target.value))} className="w-full accent-[#38bdf8]" />
       </Field>
       <Field label={`SNR mask: ${value.snr_mask_dbhz} dBHz`}>
-        <input type="range" min={0} max={60} value={value.snr_mask_dbhz} onChange={(e) => set("snr_mask_dbhz", Number(e.target.value))} className="w-full" />
+        <input type="range" min={0} max={60} value={value.snr_mask_dbhz} onChange={(e) => set("snr_mask_dbhz", Number(e.target.value))} className="w-full accent-[#38bdf8]" />
       </Field>
       <Field label="Troposphere">
         <select className={selCls} value={value.tropo} onChange={(e) => set("tropo", e.target.value as TropoModel)}>

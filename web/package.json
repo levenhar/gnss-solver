@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.51.0",
+    "framer-motion": "^13.1.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.427.0",
     "plotly.js-dist-min": "^2.34.0",

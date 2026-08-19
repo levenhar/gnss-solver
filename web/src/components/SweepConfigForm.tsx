@@ -3,6 +3,7 @@ import type {
   IonoModel, AmbiguityMode, EphemerisSource,
 } from "../api/types";
 import { Field } from "./Field";
+import { selCls, chipCls } from "./ui/inputStyles";
 
 const MODES: PositioningMode[] = ["static", "kinematic", "movingbase", "ppp-static", "ppp-kinematic"];
 const OPTIONAL_CONSTS: Constellation[] = ["GLO", "GAL", "BDS", "QZSS", "SBAS"];
@@ -11,8 +12,6 @@ const TROPOS: TropoModel[] = ["off", "saastamoinen", "sbas", "estimate-ztd", "es
 const IONOS: IonoModel[] = ["off", "broadcast", "sbas", "iono-free-lc", "estimate-stec", "ionex"];
 const ARS: AmbiguityMode[] = ["off", "continuous", "instantaneous", "fix-and-hold"];
 const EPHS: EphemerisSource[] = ["broadcast", "precise"];
-
-const selCls = "w-full rounded-md border border-hair bg-base px-2 py-1.5 text-ink";
 
 function ToggleGroup<T extends string>({
   label, options, selected, onToggle,
@@ -27,8 +26,7 @@ function ToggleGroup<T extends string>({
       <span className="mb-1 block text-sm text-muted">{label}</span>
       <div className="flex flex-wrap gap-2">
         {options.map((o) => (
-          <button type="button" key={o} onClick={() => onToggle(o)}
-            className={`rounded-md border px-2.5 py-1 text-xs ${selected.includes(o) ? "border-accent bg-accent/20 text-accent" : "border-hair text-muted"}`}>
+          <button type="button" key={o} onClick={() => onToggle(o)} className={chipCls(selected.includes(o))}>
             {o}
           </button>
         ))}
@@ -78,11 +76,11 @@ export function SweepConfigForm({ value, onChange }: { value: SweepConfig; onCha
       <div className="sm:col-span-2">
         <span className="mb-1 block text-sm text-muted">Constellations (GPS always included)</span>
         <div className="flex flex-wrap gap-2">
-          <span className="rounded-md border border-hair bg-panel px-2.5 py-1 text-xs text-muted">GPS</span>
+          <span className="rounded-full border border-hair bg-panel2 px-3 py-1 text-xs text-faint">GPS</span>
           {OPTIONAL_CONSTS.map((c) => (
-            <button type="button" key={c} disabled={false}
+            <button type="button" key={c}
               onClick={() => togglePool(value.constellation_pool, "constellation_pool", c)}
-              className={`rounded-md border px-2.5 py-1 text-xs ${value.constellation_pool.includes(c) ? "border-accent bg-accent/20 text-accent" : "border-hair text-muted"}`}>
+              className={chipCls(value.constellation_pool.includes(c))}>
               {c}
             </button>
           ))}

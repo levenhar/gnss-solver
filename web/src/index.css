@@ -3,5 +3,64 @@
 @tailwind utilities;
 
 :root { color-scheme: dark; }
-body { @apply bg-base text-ink; margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
+
+body {
+  @apply bg-base text-ink antialiased;
+  margin: 0;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(ellipse 1200px 600px at 50% -10%, rgba(56, 189, 248, 0.06), transparent);
+  background-attachment: fixed;
+}
+
+::selection { background: rgba(56, 189, 248, 0.35); color: #fff; }
+
+* { scrollbar-color: theme("colors.hairStrong") transparent; scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: theme("colors.hairStrong"); border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
+
 .tnum { font-variant-numeric: tabular-nums; }
+
+/* Materials: translucent chrome, blurred over content */
+.material-chrome {
+  background: rgba(11, 15, 20, 0.72);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.material-panel {
+  background: rgba(16, 21, 27, 0.82);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+
+/* Skeleton shimmer, disabled under reduced motion */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: theme("colors.panel2");
+}
+.skeleton::after {
+  content: "";
+  position: absolute; inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton::after { animation: shimmer 1.6s infinite; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .material-chrome, .material-panel { backdrop-filter: none; background: theme("colors.panel"); }
+}

@@ -11,19 +11,19 @@ export function groundTrackData(sol: Solution): Partial<Data>[] {
     const enu = llhToEnu(e.lat, e.lon, e.h, ref);
     x.push(enu.e); y.push(enu.n); colors.push(qColor(e.q));
   }
-  return [{ x, y, mode: "markers", type: "scattergl", marker: { size: 5, color: colors } }];
+  return [{ x, y, mode: "markers", type: "scatter", marker: { size: 5, color: colors } }];
 }
 
 export function heightTimeData(sol: Solution): Partial<Data>[] {
-  return [{ x: sol.epochs.map((e) => e.t), y: sol.epochs.map((e) => e.h), mode: "lines+markers", type: "scattergl", line: { color: "#38bdf8" } }];
+  return [{ x: sol.epochs.map((e) => e.t), y: sol.epochs.map((e) => e.h), mode: "lines+markers", type: "scatter", line: { color: "#38bdf8" } }];
 }
 
 export function satCountData(sol: Solution): Partial<Data>[] {
-  return [{ x: sol.epochs.map((e) => e.t), y: sol.epochs.map((e) => e.ns), mode: "lines", type: "scattergl", line: { shape: "hv", color: "#38bdf8" } }];
+  return [{ x: sol.epochs.map((e) => e.t), y: sol.epochs.map((e) => e.ns), mode: "lines", type: "scatter", line: { shape: "hv", color: "#38bdf8" } }];
 }
 
 export function arRatioData(sol: Solution): Partial<Data>[] {
-  return [{ x: sol.epochs.map((e) => e.t), y: sol.epochs.map((e) => e.ratio), mode: "lines", type: "scattergl", line: { color: "#eab308" } }];
+  return [{ x: sol.epochs.map((e) => e.t), y: sol.epochs.map((e) => e.ratio), mode: "lines", type: "scatter", line: { color: "#eab308" } }];
 }
 
 export function residualData(sol: Solution): Partial<Data>[] {
