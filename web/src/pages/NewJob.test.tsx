@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { NewJob } from "./NewJob";
@@ -42,6 +42,27 @@ describe("NewJob batch mode", () => {
 
     await user.click(screen.getByRole("button", { name: /submit/i }));
     await waitFor(() => expect(client.createBatch).toHaveBeenCalled());
+  });
+
+  it("passes the name field through to createJob", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(client, "createJob").mockResolvedValue({ job_id: "j1", status: "queued" });
+    wrap();
+
+    await user.type(screen.getByLabelText(/^name/i), "My Survey");
+    const roverInput = screen.getByLabelText(/rover/i) as HTMLInputElement;
+    await user.upload(roverInput, new File(["x"], "r.rnx"));
+    const navInput = screen.getByLabelText(/navigation/i) as HTMLInputElement;
+    await user.upload(navInput, new File(["x"], "a.nav"));
+
+    // jsdom doesn't clear the `required` file input's validity even once a file is
+    // attached, so a native click-triggered submit (userEvent v14) is blocked by
+    // constraint validation that a real browser would pass. Submit the form
+    // directly to exercise the same onSubmit handler without that jsdom limitation.
+    fireEvent.submit(screen.getByRole("button", { name: /submit/i }).closest("form")!);
+    await waitFor(() => expect(client.createJob).toHaveBeenCalled());
+    const fd = (client.createJob as any).mock.calls[0][0] as FormData;
+    expect(fd.get("name")).toBe("My Survey");
   });
 
   it("removing a base row deletes that row, not just its value", async () => {
