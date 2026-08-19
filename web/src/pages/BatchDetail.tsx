@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronRight, Loader2, TriangleAlert } from "lucide-react";
 import { client } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import type { BatchReportEntry } from "../api/types";
 import { DistributionGrid } from "../components/charts/DistributionGrid";
 import { BatchResultScatter } from "../components/charts/BatchResultScatter";
+import { EditableName } from "../components/EditableName";
 import { mean, range } from "../lib/stats";
+import { Card } from "../components/ui/Card";
+import { springSmooth, springSnappy } from "../components/ui/transitions";
 
 function summarizeConfig(configIdx: number, config: Record<string, unknown>): string {
   const mode = config.mode ?? "—";
@@ -22,9 +26,9 @@ function summarizeConfig(configIdx: number, config: Record<string, unknown>): st
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-hair px-3 py-2">
-      <div className="text-xs uppercase text-muted">{label}</div>
-      <div className="tnum text-base">{value}</div>
+    <div className="rounded-xl border border-hair bg-panel2/60 px-3 py-2.5">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-faint">{label}</div>
+      <div className="tnum mt-0.5 text-base font-semibold text-ink">{value}</div>
     </div>
   );
 }
@@ -63,6 +67,7 @@ function CoordStatTiles({ results }: { results: BatchReportEntry[] }) {
 
 export function BatchDetail() {
   const { id = "" } = useParams();
+  const qc = useQueryClient();
   const status = useQuery({
     queryKey: ["batch", id],
     queryFn: () => client.getBatch(id),
@@ -73,6 +78,10 @@ export function BatchDetail() {
     queryKey: ["batch-report", id],
     queryFn: () => client.getBatchReport(id),
     enabled: finished,
+  });
+  const rename = useMutation({
+    mutationFn: (name: string) => client.renameBatch(id, name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["batch", id] }),
   });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleBase = (baseId: string) =>
@@ -85,8 +94,10 @@ export function BatchDetail() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <div className="flex items-center gap-3">
-        <h2 className="tnum text-base font-semibold">Batch {id}</h2>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="tnum text-xl font-semibold tracking-tight text-ink">
+          <EditableName name={status.data?.name} id={id} onSave={(n) => rename.mutate(n)} />
+        </h1>
         {status.data && <StatusBadge status={status.data.status} />}
         {status.data && (
           <span className="tnum text-sm text-muted">
@@ -96,86 +107,107 @@ export function BatchDetail() {
       </div>
 
       {!finished && status.data && (
-        <p className="text-muted">Processing… polling for completion.</p>
+        <Card className="flex items-center gap-2.5 px-4 py-3.5 text-sm text-muted">
+          <Loader2 size={15} className="animate-spin motion-reduce:animate-none text-accent" />
+          Processing… polling for completion.
+        </Card>
       )}
 
       {finished && report.isError && (
-        <p className="text-sm text-red-400">Failed to load report.</p>
+        <p className="flex items-center gap-2 text-sm text-danger">
+          <TriangleAlert size={15} /> Failed to load report.
+        </p>
       )}
 
       {finished && report.data && (
-        <div className="space-y-6">
-          <div className="rounded-lg border border-hair bg-panel p-4">
-            <h3 className="mb-2 text-sm font-semibold">All bases</h3>
+        <div className="space-y-4">
+          <Card className="p-4">
+            <h2 className="mb-3 text-sm font-semibold text-ink">All bases</h2>
             <CoordStatTiles results={allResults} />
-            <div className="mt-3">
+            <div className="mt-4">
               <DistributionGrid results={allResults} />
             </div>
             <div className="mt-3">
               <BatchResultScatter results={allResults} />
             </div>
-          </div>
+          </Card>
 
-          {report.data.bases.map((b) => {
+          {report.data.bases.map((b, i) => {
             const isOpen = expanded.has(b.base_id);
             return (
-              <div key={b.base_id} className="rounded-lg border border-hair bg-panel p-4">
+              <Card key={b.base_id} delay={i * 0.03} className="overflow-hidden p-4">
                 <button
                   type="button"
                   onClick={() => toggleBase(b.base_id)}
-                  className="mb-2 flex w-full items-center gap-2 text-left"
+                  className="flex w-full items-center gap-2 text-left"
                   aria-expanded={isOpen}
                 >
-                  {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  <h3 className="text-sm font-semibold">{b.base_id}</h3>
+                  <motion.span
+                    animate={{ rotate: isOpen ? 90 : 0 }}
+                    transition={springSnappy}
+                    className="flex text-muted"
+                  >
+                    <ChevronRight size={16} />
+                  </motion.span>
+                  <h3 className="text-sm font-semibold text-ink">{b.base_id}</h3>
                 </button>
-                <div className="mb-3">
+                <div className="mb-1 mt-3">
                   <CoordStatTiles results={b.results} />
                 </div>
-                {isOpen && (
-                  <div className="mb-3">
-                    <DistributionGrid results={b.results} />
-                  </div>
-                )}
-                {isOpen && (
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="text-muted">
-                        <th className="py-1 pr-2">Job</th>
-                        <th className="py-1 pr-2">Config</th>
-                        <th className="py-1 pr-2">Status</th>
-                        <th className="py-1 pr-2">Fix rate</th>
-                        <th className="py-1 pr-2">RMS N/E/U</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {b.results.map((r) => (
-                        <tr key={r.job_id} className="border-t border-hair hover:bg-white/5">
-                          <td className="tnum py-1 pr-2">
-                            <Link to={`/jobs/${r.job_id}`} className="hover:underline">
-                              {r.job_id}
-                            </Link>
-                          </td>
-                          <td className="py-1 pr-2 text-xs text-muted">{summarizeConfig(r.config_idx, r.config)}</td>
-                          <td className="py-1 pr-2">
-                            <StatusBadge status={r.status} />
-                            {r.status === "failed" && (r.error_type || r.error_message) && (
-                              <div className="mt-1 text-xs text-red-400">
-                                {r.error_type && <span className="font-medium">{r.error_type}</span>}
-                                {r.error_message && <div className="text-red-400/80">{r.error_message}</div>}
-                              </div>
-                            )}
-                          </td>
-                          <td className="tnum py-1 pr-2">{r.fix_rate_pct != null ? `${r.fix_rate_pct.toFixed(1)}%` : "—"}</td>
-                          <td className="tnum py-1 pr-2">
-                            {r.rms_sdn != null ? `${r.rms_sdn.toFixed(3)} / ${r.rms_sde!.toFixed(3)} / ${r.rms_sdu!.toFixed(3)}` : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={springSmooth}
+                      className="overflow-hidden"
+                    >
+                      <div className="mb-3 mt-2">
+                        <DistributionGrid results={b.results} />
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                          <thead>
+                            <tr className="border-b border-hair text-xs uppercase tracking-wide text-faint">
+                              <th className="py-2 pr-2 font-medium">Job</th>
+                              <th className="py-2 pr-2 font-medium">Config</th>
+                              <th className="py-2 pr-2 font-medium">Status</th>
+                              <th className="py-2 pr-2 font-medium">Fix rate</th>
+                              <th className="py-2 pr-2 font-medium">RMS N/E/U</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {b.results.map((r) => (
+                              <tr key={r.job_id} className="border-t border-hair transition-colors duration-150 hover:bg-white/[0.04]">
+                                <td className="tnum py-2 pr-2">
+                                  <Link to={`/jobs/${r.job_id}`} className="text-accent hover:underline">
+                                    {r.job_id}
+                                  </Link>
+                                </td>
+                                <td className="py-2 pr-2 text-xs text-muted">{summarizeConfig(r.config_idx, r.config)}</td>
+                                <td className="py-2 pr-2">
+                                  <StatusBadge status={r.status} />
+                                  {r.status === "failed" && (r.error_type || r.error_message) && (
+                                    <div className="mt-1 text-xs text-danger">
+                                      {r.error_type && <span className="font-medium">{r.error_type}</span>}
+                                      {r.error_message && <div className="text-danger/80">{r.error_message}</div>}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="tnum py-2 pr-2">{r.fix_rate_pct != null ? `${r.fix_rate_pct.toFixed(1)}%` : "—"}</td>
+                                <td className="tnum py-2 pr-2">
+                                  {r.rms_sdn != null ? `${r.rms_sdn.toFixed(3)} / ${r.rms_sde!.toFixed(3)} / ${r.rms_sdu!.toFixed(3)}` : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Card>
             );
           })}
         </div>

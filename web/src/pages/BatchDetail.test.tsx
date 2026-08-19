@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { BatchDetail } from "./BatchDetail";
@@ -112,6 +113,27 @@ describe("BatchDetail", () => {
     await waitFor(() => expect(screen.getByText("j-fail")).toBeInTheDocument());
     expect(screen.getByText("RtklibExecError")).toBeInTheDocument();
     expect(screen.getByText("boom")).toBeInTheDocument();
+  });
+
+  it("shows the name and renames via the client on save", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(client, "getBatch").mockResolvedValue({
+      batch_id: "b1", status: "running",
+      bases: [{ base_id: "base-0", done: 1, total: 2, failed: 0 }],
+      done: 1, total: 2, name: "Old Sweep",
+    });
+    vi.spyOn(client, "renameBatch").mockResolvedValue({
+      batch_id: "b1", status: "running",
+      bases: [{ base_id: "base-0", done: 1, total: 2, failed: 0 }],
+      done: 1, total: 2, name: "New Sweep",
+    });
+    wrap("b1");
+    await waitFor(() => expect(screen.getByText("Old Sweep")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /rename/i }));
+    const input = screen.getByRole("textbox");
+    await user.clear(input);
+    await user.type(input, "New Sweep{Enter}");
+    await waitFor(() => expect(client.renameBatch).toHaveBeenCalledWith("b1", "New Sweep"));
   });
 
   it("shows an error message if the report query fails once finished", async () => {
