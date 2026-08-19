@@ -82,6 +82,7 @@ async def create_job(
     nav: list[UploadFile] = File(...),
     config: str = Form(...),
     base: UploadFile | None = File(None),
+    name: str | None = Form(None),
 ) -> JobCreated:
     try:
         cfg = ProcessingConfig.model_validate_json(config)
@@ -98,9 +99,12 @@ async def create_job(
         jobstore.save_upload(job_id, "base", base.filename or "base.rnx", await base.read())
     jobstore.write_config(job_id, cfg)
     jobstore.write_job_created(job_id)
+    clean_name = name.strip() if name and name.strip() else None
+    if clean_name:
+        jobstore.write_job_name(job_id, clean_name)
 
     get_queue().enqueue("api.tasks.run_solve_job", job_id, job_id=job_id)
-    return JobCreated(job_id=job_id, status="queued")
+    return JobCreated(job_id=job_id, status="queued", name=clean_name)
 
 
 @app.post("/batches", status_code=201, response_model=BatchCreated)
@@ -110,6 +114,7 @@ async def create_batch(
     base: list[UploadFile] = File(...),
     sweep_config: str = Form(...),
     n_configs: int = Form(100),
+    name: str | None = Form(None),
 ) -> BatchCreated:
     if not nav:
         raise HTTPException(status_code=422, detail="at least one nav file is required")
@@ -161,7 +166,10 @@ async def create_batch(
         "sweep_config": sweep.model_dump(mode="json"),
         "bases": bases_manifest,
     })
-    return BatchCreated(batch_id=batch_id, status="queued", n_bases=len(base), n_configs=n_configs)
+    clean_name = name.strip() if name and name.strip() else None
+    if clean_name:
+        jobstore.write_batch_name(batch_id, clean_name)
+    return BatchCreated(batch_id=batch_id, status="queued", n_bases=len(base), n_configs=n_configs, name=clean_name)
 
 
 def _batch_base_counts(job_ids: list[str]) -> tuple[int, int, int]:
@@ -188,7 +196,10 @@ def _compute_batch_status(batch_id: str) -> BatchStatusResponse | None:
         total_done += done
         total_all += total
     status = "finished" if total_all > 0 and total_done == total_all else "running"
-    return BatchStatusResponse(batch_id=batch_id, status=status, bases=base_statuses, done=total_done, total=total_all)
+    return BatchStatusResponse(
+        batch_id=batch_id, status=status, bases=base_statuses, done=total_done, total=total_all,
+        name=jobstore.read_batch_name(batch_id),
+    )
 
 
 @app.get("/batches/{batch_id}", response_model=BatchStatusResponse)
@@ -205,7 +216,7 @@ def list_batches() -> list[BatchListItem]:
     for bid in jobstore.list_batch_ids():
         st = _compute_batch_status(bid)
         if st is not None:
-            items.append(BatchListItem(batch_id=bid, status=st.status, done=st.done, total=st.total))
+            items.append(BatchListItem(batch_id=bid, status=st.status, done=st.done, total=st.total, name=st.name))
     return items
 
 
@@ -290,7 +301,7 @@ def job_status(job_id: str) -> JobStatusResponse:
     st = _status(job_id)
     if st == "not_found":
         raise HTTPException(status_code=404, detail="job not found")
-    return JobStatusResponse(job_id=job_id, status=st, error=jobstore.read_error(job_id))
+    return JobStatusResponse(job_id=job_id, status=st, error=jobstore.read_error(job_id), name=jobstore.read_job_name(job_id))
 
 
 @app.get("/jobs/{job_id}/result")
@@ -311,7 +322,7 @@ def job_result(job_id: str):
 def list_jobs() -> list[JobListItem]:
     batch_job_ids = jobstore.list_batch_job_ids()
     return [
-        JobListItem(job_id=j, status=_status(j))
+        JobListItem(job_id=j, status=_status(j), name=jobstore.read_job_name(j))
         for j in jobstore.list_job_ids()
         if j not in batch_job_ids
     ]

@@ -55,6 +55,44 @@ def test_post_job_valid_enqueues(client):
     assert rover.name == "r.rnx"
 
 
+def test_post_job_with_name_persists_and_returns_it(client):
+    resp = client.post(
+        "/jobs",
+        files=_files(),
+        data={"config": json.dumps({"mode": "static"}), "name": "  My Survey  "},
+    )
+    assert resp.json()["name"] == "My Survey"
+    jid = resp.json()["job_id"]
+    assert jobstore.read_job_name(jid) == "My Survey"
+
+
+def test_post_job_without_name_returns_none(client):
+    resp = client.post("/jobs", files=_files(), data={"config": json.dumps({"mode": "static"})})
+    assert resp.json()["name"] is None
+
+
+def test_post_job_blank_name_is_treated_as_no_name(client):
+    resp = client.post(
+        "/jobs",
+        files=_files(),
+        data={"config": json.dumps({"mode": "static"}), "name": "   "},
+    )
+    assert resp.json()["name"] is None
+
+
+def test_list_jobs_includes_name(client):
+    jobstore.write_solution("j1", {"summary": {}})
+    jobstore.write_job_name("j1", "Named Job")
+    items = {i["job_id"]: i["name"] for i in client.get("/jobs").json()}
+    assert items["j1"] == "Named Job"
+
+
+def test_job_status_includes_name(client):
+    jobstore.write_solution("j1", {"summary": {}})
+    jobstore.write_job_name("j1", "Named Job")
+    assert client.get("/jobs/j1").json()["name"] == "Named Job"
+
+
 def test_post_job_records_created_at(client):
     resp = client.post(
         "/jobs",
@@ -185,6 +223,33 @@ def test_post_batch_rejects_fanout_over_cap(client, monkeypatch):
     monkeypatch.setattr(main_mod, "MAX_TOTAL_BATCH_JOBS", 4)
     resp = client.post("/batches", files=_batch_files(n_bases=2), data=_batch_data("3"))
     assert resp.status_code == 422
+
+
+def test_post_batch_with_name_persists_and_returns_it(client):
+    resp = client.post(
+        "/batches", files=_batch_files(n_bases=1), data={**_batch_data("1"), "name": "  Sweep A  "}
+    )
+    assert resp.json()["name"] == "Sweep A"
+    bid = resp.json()["batch_id"]
+    assert jobstore.read_batch_name(bid) == "Sweep A"
+
+
+def test_post_batch_without_name_returns_none(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("1"))
+    assert resp.json()["name"] is None
+
+
+def test_list_batches_includes_name(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={**_batch_data("1"), "name": "Sweep A"})
+    bid = resp.json()["batch_id"]
+    items = {i["batch_id"]: i["name"] for i in client.get("/batches").json()}
+    assert items[bid] == "Sweep A"
+
+
+def test_batch_status_includes_name(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data={**_batch_data("1"), "name": "Sweep A"})
+    bid = resp.json()["batch_id"]
+    assert client.get(f"/batches/{bid}").json()["name"] == "Sweep A"
 
 
 def test_batch_status_aggregates_children(client):

@@ -12,17 +12,20 @@ class ErrorInfo(BaseModel):
 class JobCreated(BaseModel):
     job_id: str
     status: str
+    name: str | None = None
 
 
 class JobStatusResponse(BaseModel):
     job_id: str
     status: str
     error: ErrorInfo | None = None
+    name: str | None = None
 
 
 class JobListItem(BaseModel):
     job_id: str
     status: str
+    name: str | None = None
 
 
 class BatchCreated(BaseModel):
@@ -30,6 +33,7 @@ class BatchCreated(BaseModel):
     status: str
     n_bases: int
     n_configs: int
+    name: str | None = None
 
 
 class BatchListItem(BaseModel):
@@ -37,6 +41,7 @@ class BatchListItem(BaseModel):
     status: str
     done: int
     total: int
+    name: str | None = None
 
 
 class BatchBaseStatus(BaseModel):
@@ -52,6 +57,7 @@ class BatchStatusResponse(BaseModel):
     bases: list[BatchBaseStatus]
     done: int
     total: int
+    name: str | None = None
 
 
 class BatchReportEntry(BaseModel):
