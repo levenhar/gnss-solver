@@ -6,8 +6,9 @@ export interface BatchFiles {
   bases: (File | null)[];
 }
 
-export function buildBatchForm(files: BatchFiles, sweepConfig: SweepConfig, nConfigs = 100): FormData {
+export function buildBatchForm(files: BatchFiles, sweepConfig: SweepConfig, nConfigs = 100, name?: string): FormData {
   const fd = new FormData();
+  if (name && name.trim()) fd.append("name", name.trim());
   if (files.rover) fd.append("rover", files.rover);
   for (const n of files.nav) fd.append("nav", n);
   for (const b of files.bases) if (b) fd.append("base", b);

@@ -22,4 +22,16 @@ describe("buildJobForm", () => {
     expect((fd.get("base") as File).name).toBe("base.obs");
     expect(JSON.parse(fd.get("config") as string).base_coord).toEqual([1, 2, 3]);
   });
+
+  it("includes a trimmed name field when provided", () => {
+    const fd = buildJobForm({ rover: file("r.obs"), base: null, nav: [file("a.nav")] }, DEFAULT_CONFIG, "  My Survey  ");
+    expect(fd.get("name")).toBe("My Survey");
+  });
+
+  it("omits the name field when blank or absent", () => {
+    const fd = buildJobForm({ rover: file("r.obs"), base: null, nav: [file("a.nav")] }, DEFAULT_CONFIG, "   ");
+    expect(fd.get("name")).toBeNull();
+    const fd2 = buildJobForm({ rover: file("r.obs"), base: null, nav: [file("a.nav")] }, DEFAULT_CONFIG);
+    expect(fd2.get("name")).toBeNull();
+  });
 });

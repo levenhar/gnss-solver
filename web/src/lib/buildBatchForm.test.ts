@@ -46,4 +46,16 @@ describe("buildBatchForm", () => {
     const fd = buildBatchForm(files, DEFAULT_SWEEP_CONFIG);
     expect(fd.getAll("base")).toEqual([]);
   });
+
+  it("includes a trimmed name field when provided", () => {
+    const files: BatchFiles = { rover: file("r.rnx"), nav: [file("a.nav")], bases: [file("b.obs")] };
+    const fd = buildBatchForm(files, DEFAULT_SWEEP_CONFIG, 100, "  Sweep A  ");
+    expect(fd.get("name")).toBe("Sweep A");
+  });
+
+  it("omits the name field when absent", () => {
+    const files: BatchFiles = { rover: file("r.rnx"), nav: [file("a.nav")], bases: [file("b.obs")] };
+    const fd = buildBatchForm(files, DEFAULT_SWEEP_CONFIG);
+    expect(fd.get("name")).toBeNull();
+  });
 });
