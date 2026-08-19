@@ -13,15 +13,14 @@ import { mean, range } from "../lib/stats";
 import { Card } from "../components/ui/Card";
 import { springSmooth, springSnappy } from "../components/ui/transitions";
 
-function summarizeConfig(configIdx: number, config: Record<string, unknown>): string {
-  const mode = config.mode ?? "—";
-  const frequency = config.frequency ?? "—";
-  const ambiguity = config.ambiguity ?? "—";
+function configElev(config: Record<string, unknown>): string {
   const elev = config.elev_mask_deg;
-  const elevStr = typeof elev === "number" ? `el${elev.toFixed(0)}°` : "el—";
+  return typeof elev === "number" ? `${elev.toFixed(0)}°` : "—";
+}
+
+function configAr(config: Record<string, unknown>): string {
   const ar = config.ar_ratio_min;
-  const arStr = typeof ar === "number" ? `ar${ar.toFixed(1)}` : "ar—";
-  return `#${configIdx}: ${mode} / ${frequency} / ${ambiguity} / ${elevStr} / ${arStr}`;
+  return typeof ar === "number" ? ar.toFixed(1) : "—";
 }
 
 function StatTile({ label, value }: { label: string; value: string }) {
@@ -171,7 +170,12 @@ export function BatchDetail() {
                           <thead>
                             <tr className="border-b border-hair text-xs uppercase tracking-wide text-faint">
                               <th className="py-2 pr-2 font-medium">Job</th>
-                              <th className="py-2 pr-2 font-medium">Config</th>
+                              <th className="py-2 pr-2 font-medium">#</th>
+                              <th className="py-2 pr-2 font-medium">Mode</th>
+                              <th className="py-2 pr-2 font-medium">Frequency</th>
+                              <th className="py-2 pr-2 font-medium">Ambiguity</th>
+                              <th className="py-2 pr-2 font-medium">Elev mask</th>
+                              <th className="py-2 pr-2 font-medium">AR min</th>
                               <th className="py-2 pr-2 font-medium">Status</th>
                               <th className="py-2 pr-2 font-medium">Fix rate</th>
                               <th className="py-2 pr-2 font-medium">RMS N/E/U</th>
@@ -185,7 +189,12 @@ export function BatchDetail() {
                                     {r.job_id}
                                   </Link>
                                 </td>
-                                <td className="py-2 pr-2 text-xs text-muted">{summarizeConfig(r.config_idx, r.config)}</td>
+                                <td className="tnum py-2 pr-2 text-xs text-muted">#{r.config_idx}</td>
+                                <td className="py-2 pr-2 text-xs text-muted">{String(r.config.mode ?? "—")}</td>
+                                <td className="py-2 pr-2 text-xs text-muted">{String(r.config.frequency ?? "—")}</td>
+                                <td className="py-2 pr-2 text-xs text-muted">{String(r.config.ambiguity ?? "—")}</td>
+                                <td className="tnum py-2 pr-2 text-xs text-muted">{configElev(r.config)}</td>
+                                <td className="tnum py-2 pr-2 text-xs text-muted">{configAr(r.config)}</td>
                                 <td className="py-2 pr-2">
                                   <StatusBadge status={r.status} />
                                   {r.status === "failed" && (r.error_type || r.error_message) && (

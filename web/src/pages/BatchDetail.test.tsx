@@ -77,13 +77,13 @@ describe("BatchDetail", () => {
     // per-base distribution grid adds 3 more histograms (7 total: overall(4) + base-0(3))
     expect(screen.getAllByTestId("plot")).toHaveLength(7);
     expect(screen.getAllByText(/95/).length).toBeGreaterThan(0);
-    // config summary column (finding 1): config_idx + compact one-line summary
-    expect(screen.getByText(/#1/)).toBeInTheDocument();
-    expect(screen.getByText(/static/)).toBeInTheDocument();
-    expect(screen.getByText(/l1\+l2/)).toBeInTheDocument();
-    expect(screen.getByText(/continuous/)).toBeInTheDocument();
-    expect(screen.getByText(/el15/)).toBeInTheDocument();
-    expect(screen.getByText(/ar3/)).toBeInTheDocument();
+    // config split into its own columns: #, mode, frequency, ambiguity, elev mask, AR min
+    expect(screen.getByText("#1")).toBeInTheDocument();
+    expect(screen.getByText("static")).toBeInTheDocument();
+    expect(screen.getByText("l1+l2")).toBeInTheDocument();
+    expect(screen.getByText("continuous")).toBeInTheDocument();
+    expect(screen.getByText("15°")).toBeInTheDocument();
+    expect(screen.getByText("3.0")).toBeInTheDocument();
   });
 
   it("shows error type/message inline for a failed row", async () => {
