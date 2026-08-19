@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 
@@ -41,5 +42,19 @@ describe("JobDetail", () => {
     vi.spyOn(client, "getJob").mockResolvedValue({ job_id: "j2", status: "failed", error: { type: "ParseError", message: "bad", workdir: null } });
     wrap("j2");
     await waitFor(() => expect(screen.getByText(/ParseError/)).toBeInTheDocument());
+  });
+
+  it("shows the name and renames via the client on save", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(client, "getJob").mockResolvedValue({ job_id: "j3", status: "finished", error: null, name: "Old Name" });
+    vi.spyOn(client, "getResult").mockResolvedValue(solution as any);
+    vi.spyOn(client, "renameJob").mockResolvedValue({ job_id: "j3", status: "finished", error: null, name: "New Name" });
+    wrap("j3");
+    await waitFor(() => expect(screen.getByText("Old Name")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /rename/i }));
+    const input = screen.getByRole("textbox");
+    await user.clear(input);
+    await user.type(input, "New Name{Enter}");
+    await waitFor(() => expect(client.renameJob).toHaveBeenCalledWith("j3", "New Name"));
   });
 });
