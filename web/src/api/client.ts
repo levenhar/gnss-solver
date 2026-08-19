@@ -46,6 +46,30 @@ export const client = {
   async getBatchReport(id: string): Promise<BatchReport> {
     return parse(await fetch(`${apiBase()}/batches/${id}/report`));
   },
+  async renameJob(id: string, name: string): Promise<JobStatus> {
+    return parse(
+      await fetch(`${apiBase()}/jobs/${id}/name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+    );
+  },
+  async renameBatch(id: string, name: string): Promise<BatchStatus> {
+    return parse(
+      await fetch(`${apiBase()}/batches/${id}/name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+    );
+  },
+  async deleteJob(id: string): Promise<void> {
+    await parse(await fetch(`${apiBase()}/jobs/${id}`, { method: "DELETE" }));
+  },
+  async deleteBatch(id: string): Promise<void> {
+    await parse(await fetch(`${apiBase()}/batches/${id}`, { method: "DELETE" }));
+  },
   async health(): Promise<{ status: string; redis: boolean }> {
     return parse(await fetch(`${apiBase()}/health`));
   },

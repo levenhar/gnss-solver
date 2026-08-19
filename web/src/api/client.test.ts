@@ -69,3 +69,48 @@ describe("batch api client", () => {
     expect(String(spy.mock.calls[0][0])).toMatch(/\/batches\/b1\/report$/);
   });
 });
+
+describe("rename/delete", () => {
+  it("renameJob PATCHes /jobs/:id/name with a JSON body", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockReturnValue(
+      okJson({ job_id: "j1", status: "finished", error: null, name: "New" })
+    );
+    const res = await client.renameJob("j1", "New");
+    expect(res.name).toBe("New");
+    const [url, init] = spy.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toMatch(/\/jobs\/j1\/name$/);
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body as string)).toEqual({ name: "New" });
+  });
+
+  it("renameBatch PATCHes /batches/:id/name with a JSON body", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockReturnValue(
+      okJson({ batch_id: "b1", status: "running", bases: [], done: 0, total: 0, name: "New" })
+    );
+    const res = await client.renameBatch("b1", "New");
+    expect(res.name).toBe("New");
+    const [url, init] = spy.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toMatch(/\/batches\/b1\/name$/);
+    expect(init.method).toBe("PATCH");
+  });
+
+  it("deleteJob DELETEs /jobs/:id", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockReturnValue(
+      Promise.resolve(new Response(null, { status: 204 }))
+    );
+    await client.deleteJob("j1");
+    const [url, init] = spy.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toMatch(/\/jobs\/j1$/);
+    expect(init.method).toBe("DELETE");
+  });
+
+  it("deleteBatch DELETEs /batches/:id", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockReturnValue(
+      Promise.resolve(new Response(null, { status: 204 }))
+    );
+    await client.deleteBatch("b1");
+    const [url, init] = spy.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toMatch(/\/batches\/b1$/);
+    expect(init.method).toBe("DELETE");
+  });
+});

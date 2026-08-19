@@ -48,16 +48,17 @@ export interface Solution {
 }
 
 export type JobStatusValue = "queued" | "started" | "finished" | "failed" | "not_found";
-export interface JobCreated { job_id: string; status: string; }
-export interface JobListItem { job_id: string; status: string; }
+export interface JobCreated { job_id: string; status: string; name?: string | null; }
+export interface JobListItem { job_id: string; status: string; name?: string | null; }
 export interface ErrorInfo { type: string; message: string; workdir: string | null; }
-export interface JobStatus { job_id: string; status: JobStatusValue; error: ErrorInfo | null; }
+export interface JobStatus { job_id: string; status: JobStatusValue; error: ErrorInfo | null; name?: string | null; }
 
 export interface BatchCreated {
   batch_id: string;
   status: string;
   n_bases: number;
   n_configs: number;
+  name?: string | null;
 }
 
 export interface BatchListItem {
@@ -65,6 +66,7 @@ export interface BatchListItem {
   status: string;
   done: number;
   total: number;
+  name?: string | null;
 }
 
 export interface BatchBaseStatus {
@@ -80,6 +82,7 @@ export interface BatchStatus {
   bases: BatchBaseStatus[];
   done: number;
   total: number;
+  name?: string | null;
 }
 
 export interface BatchReportEntry {
