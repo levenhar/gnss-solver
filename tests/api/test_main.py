@@ -156,6 +156,18 @@ def test_health_reports_redis(client):
     assert body["redis"] is True
 
 
+def test_delete_job_removes_it(client):
+    jobstore.write_solution("j1", {"summary": {}})
+    resp = client.delete("/jobs/j1")
+    assert resp.status_code == 204
+    assert client.get("/jobs/j1").status_code == 404
+
+
+def test_delete_job_404_when_unknown(client):
+    resp = client.delete("/jobs/nope")
+    assert resp.status_code == 404
+
+
 def test_list_jobs(client):
     jobstore.write_solution("j1", {"summary": {}})
     jobstore.write_error("j2", ErrorInfo(type="X", message="y"))
@@ -269,6 +281,24 @@ def test_batch_status_includes_name(client):
     resp = client.post("/batches", files=_batch_files(n_bases=1), data={**_batch_data("1"), "name": "Sweep A"})
     bid = resp.json()["batch_id"]
     assert client.get(f"/batches/{bid}").json()["name"] == "Sweep A"
+
+
+def test_delete_batch_removes_it_and_child_jobs(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("2"))
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    job_ids = [j["job_id"] for j in manifest["bases"][0]["jobs"]]
+
+    resp = client.delete(f"/batches/{bid}")
+    assert resp.status_code == 204
+    assert client.get(f"/batches/{bid}").status_code == 404
+    for jid in job_ids:
+        assert not jobstore.job_dir(jid).exists()
+
+
+def test_delete_batch_404_when_unknown(client):
+    resp = client.delete("/batches/nope")
+    assert resp.status_code == 404
 
 
 def test_batch_status_aggregates_children(client):

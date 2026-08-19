@@ -211,6 +211,17 @@ def batch_status(batch_id: str) -> BatchStatusResponse:
     return result
 
 
+@app.delete("/batches/{batch_id}", status_code=204)
+def delete_batch(batch_id: str) -> None:
+    manifest = jobstore.read_batch_manifest(batch_id)
+    if manifest is None:
+        raise HTTPException(status_code=404, detail="batch not found")
+    for b in manifest["bases"]:
+        for j in b["jobs"]:
+            jobstore.delete_job(j["job_id"])
+    jobstore.delete_batch(batch_id)
+
+
 @app.patch("/batches/{batch_id}/name", response_model=BatchStatusResponse)
 def rename_batch(batch_id: str, body: RenameRequest) -> BatchStatusResponse:
     if jobstore.read_batch_manifest(batch_id) is None:
@@ -308,6 +319,13 @@ def batch_report(batch_id: str) -> BatchReportResponse:
         base_reports.append(BatchBaseReport(base_id=b["base_id"], results=entries, summary=summary))
 
     return BatchReportResponse(batch_id=batch_id, bases=base_reports)
+
+
+@app.delete("/jobs/{job_id}", status_code=204)
+def delete_job(job_id: str) -> None:
+    if not jobstore.job_dir(job_id).exists():
+        raise HTTPException(status_code=404, detail="job not found")
+    jobstore.delete_job(job_id)
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
