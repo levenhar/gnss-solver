@@ -131,6 +131,25 @@ def test_result_flow_finished_and_failed(client):
     assert rf.json()["detail"]["type"] == "ParseError"
 
 
+def test_patch_job_name_renames(client):
+    jobstore.write_solution("j1", {"summary": {}})
+    resp = client.patch("/jobs/j1/name", json={"name": "  Renamed  "})
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "Renamed"
+    assert jobstore.read_job_name("j1") == "Renamed"
+
+
+def test_patch_job_name_404_when_unknown(client):
+    resp = client.patch("/jobs/nope/name", json={"name": "x"})
+    assert resp.status_code == 404
+
+
+def test_patch_job_name_rejects_blank(client):
+    jobstore.write_solution("j1", {"summary": {}})
+    resp = client.patch("/jobs/j1/name", json={"name": "   "})
+    assert resp.status_code == 422
+
+
 def test_health_reports_redis(client):
     body = client.get("/health").json()
     assert body["status"] == "ok"
@@ -281,6 +300,20 @@ def test_batch_status_running_while_incomplete(client):
 
 def test_batch_status_404_when_unknown(client):
     assert client.get("/batches/nope").status_code == 404
+
+
+def test_patch_batch_name_renames(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("1"))
+    bid = resp.json()["batch_id"]
+    resp = client.patch(f"/batches/{bid}/name", json={"name": "Renamed Sweep"})
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "Renamed Sweep"
+    assert jobstore.read_batch_name(bid) == "Renamed Sweep"
+
+
+def test_patch_batch_name_404_when_unknown(client):
+    resp = client.patch("/batches/nope/name", json={"name": "x"})
+    assert resp.status_code == 404
 
 
 def test_list_batches(client):

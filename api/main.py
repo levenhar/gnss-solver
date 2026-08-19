@@ -23,6 +23,7 @@ from api.schemas import (
     JobCreated,
     JobListItem,
     JobStatusResponse,
+    RenameRequest,
 )
 from gnss_engine.models.config import ProcessingConfig, SweepConfig
 from gnss_engine.sweep import random_sweep
@@ -210,6 +211,19 @@ def batch_status(batch_id: str) -> BatchStatusResponse:
     return result
 
 
+@app.patch("/batches/{batch_id}/name", response_model=BatchStatusResponse)
+def rename_batch(batch_id: str, body: RenameRequest) -> BatchStatusResponse:
+    if jobstore.read_batch_manifest(batch_id) is None:
+        raise HTTPException(status_code=404, detail="batch not found")
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name must not be blank")
+    jobstore.write_batch_name(batch_id, name)
+    result = _compute_batch_status(batch_id)
+    assert result is not None
+    return result
+
+
 @app.get("/batches", response_model=list[BatchListItem])
 def list_batches() -> list[BatchListItem]:
     items = []
@@ -302,6 +316,17 @@ def job_status(job_id: str) -> JobStatusResponse:
     if st == "not_found":
         raise HTTPException(status_code=404, detail="job not found")
     return JobStatusResponse(job_id=job_id, status=st, error=jobstore.read_error(job_id), name=jobstore.read_job_name(job_id))
+
+
+@app.patch("/jobs/{job_id}/name", response_model=JobStatusResponse)
+def rename_job(job_id: str, body: RenameRequest) -> JobStatusResponse:
+    if not jobstore.job_dir(job_id).exists():
+        raise HTTPException(status_code=404, detail="job not found")
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name must not be blank")
+    jobstore.write_job_name(job_id, name)
+    return JobStatusResponse(job_id=job_id, status=_status(job_id), error=jobstore.read_error(job_id), name=name)
 
 
 @app.get("/jobs/{job_id}/result")

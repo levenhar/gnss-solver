@@ -9,6 +9,10 @@ class ErrorInfo(BaseModel):
     workdir: str | None = None
 
 
+class RenameRequest(BaseModel):
+    name: str
+
+
 class JobCreated(BaseModel):
     job_id: str
     status: str
