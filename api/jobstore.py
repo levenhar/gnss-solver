@@ -106,6 +106,26 @@ def read_job_created(job_id: str) -> str | None:
     return json.loads(p.read_text(encoding="utf-8"))["created_at"]
 
 
+def write_name(dir_: Path, name: str) -> None:
+    dir_.mkdir(parents=True, exist_ok=True)
+    (dir_ / "name.json").write_text(json.dumps({"name": name}), encoding="utf-8")
+
+
+def read_name(dir_: Path) -> str | None:
+    p = dir_ / "name.json"
+    if not p.exists():
+        return None
+    return json.loads(p.read_text(encoding="utf-8"))["name"]
+
+
+def write_job_name(job_id: str, name: str) -> None:
+    write_name(job_dir(job_id), name)
+
+
+def read_job_name(job_id: str) -> str | None:
+    return read_name(job_dir(job_id))
+
+
 def delete_job(job_id: str) -> None:
     shutil.rmtree(job_dir(job_id), ignore_errors=True)
 
@@ -120,6 +140,14 @@ def _batches_root() -> Path:
 
 def batch_dir(batch_id: str) -> Path:
     return _batches_root() / batch_id
+
+
+def write_batch_name(batch_id: str, name: str) -> None:
+    write_name(batch_dir(batch_id), name)
+
+
+def read_batch_name(batch_id: str) -> str | None:
+    return read_name(batch_dir(batch_id))
 
 
 def write_batch_manifest(batch_id: str, manifest: dict) -> None:

@@ -92,3 +92,17 @@ def test_delete_batch_removes_directory(data_env):
     assert jobstore.batch_dir("b-del").exists()
     jobstore.delete_batch("b-del")
     assert not jobstore.batch_dir("b-del").exists()
+
+
+def test_job_name_roundtrip(data_env):
+    jid = "job-name"
+    assert jobstore.read_job_name(jid) is None
+    jobstore.write_job_name(jid, "My Survey")
+    assert jobstore.read_job_name(jid) == "My Survey"
+
+
+def test_batch_name_roundtrip(data_env):
+    bid = "batch-name"
+    assert jobstore.read_batch_name(bid) is None
+    jobstore.write_batch_name(bid, "Sweep A")
+    assert jobstore.read_batch_name(bid) == "Sweep A"
