@@ -197,9 +197,13 @@ export function BatchDetail() {
                                 <td className="py-2 pr-2">
                                   <StatusBadge status={r.status} />
                                   {r.status === "failed" && (r.error_type || r.error_message) && (
-                                    <div className="mt-1 text-xs text-danger">
+                                    <div className="mt-1 max-w-[220px] text-xs text-danger">
                                       {r.error_type && <span className="font-medium">{r.error_type}</span>}
-                                      {r.error_message && <div className="text-danger/80">{r.error_message}</div>}
+                                      {r.error_message && (
+                                        <div className="truncate text-danger/80" title={r.error_message}>
+                                          {r.error_message}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </td>
