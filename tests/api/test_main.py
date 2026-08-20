@@ -380,6 +380,25 @@ def test_batch_report_ranks_by_fix_rate_and_summarizes(client):
     assert summary["n_failed"] == 1
 
 
+def test_batch_report_falls_back_to_epochs_for_old_solutions_missing_sat_stats(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("1"))
+    bid = resp.json()["batch_id"]
+    manifest = jobstore.read_batch_manifest(bid)
+    job_id = manifest["bases"][0]["jobs"][0]["job_id"]
+
+    # Old-style solution: summary predates mean_sats/min_sats, but epochs
+    # (with per-epoch ns) are still there - report should derive from those.
+    jobstore.write_solution(job_id, {
+        "summary": {"fix_rate_pct": 80.0},
+        "epochs": [{"ns": 9}, {"ns": 5}, {"ns": 7}],
+    })
+
+    report = client.get(f"/batches/{bid}/report").json()
+    entry = report["bases"][0]["results"][0]
+    assert entry["mean_sats"] == pytest.approx(7.0)
+    assert entry["min_sats"] == 5
+
+
 def test_batch_report_all_failed_base_has_none_summary_no_crash(client):
     resp = client.post("/batches", files=_batch_files(n_bases=1), data=_batch_data("3"))
     bid = resp.json()["batch_id"]

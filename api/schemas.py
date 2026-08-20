@@ -76,6 +76,8 @@ class BatchReportEntry(BaseModel):
     utm_e: float | None = None
     utm_n: float | None = None
     mean_h: float | None = None
+    mean_sats: float | None = None
+    min_sats: int | None = None
     error_type: str | None = None
     error_message: str | None = None
 

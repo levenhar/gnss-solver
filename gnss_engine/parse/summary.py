@@ -43,4 +43,6 @@ def summarize(epochs: list[Epoch]) -> SolutionSummary:
         mean_lat=_mean([e.lat for e in epochs]) if epochs else None,
         mean_lon=_mean([e.lon for e in epochs]) if epochs else None,
         mean_h=_mean([e.h for e in epochs]) if epochs else None,
+        mean_sats=_mean([e.ns for e in epochs]) if epochs else None,
+        min_sats=min((e.ns for e in epochs), default=None),
     )

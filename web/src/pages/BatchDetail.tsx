@@ -166,10 +166,9 @@ export function BatchDetail() {
                         <DistributionGrid results={b.results} />
                       </div>
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
+                        <table className="text-left text-sm">
                           <thead>
                             <tr className="border-b border-hair text-xs uppercase tracking-wide text-faint">
-                              <th className="py-2 pr-2 font-medium">Job</th>
                               <th className="py-2 pr-2 font-medium">#</th>
                               <th className="py-2 pr-2 font-medium">Mode</th>
                               <th className="py-2 pr-2 font-medium">Frequency</th>
@@ -178,6 +177,7 @@ export function BatchDetail() {
                               <th className="py-2 pr-2 font-medium">AR min</th>
                               <th className="py-2 pr-2 font-medium">Status</th>
                               <th className="py-2 pr-2 font-medium">Fix rate</th>
+                              <th className="py-2 pr-2 font-medium">Sats avg/min</th>
                               <th className="py-2 pr-2 font-medium">RMS N/E/U</th>
                             </tr>
                           </thead>
@@ -185,14 +185,13 @@ export function BatchDetail() {
                             {b.results.map((r) => (
                               <tr key={r.job_id} className="border-t border-hair transition-colors duration-150 hover:bg-white/[0.04]">
                                 <td className="tnum py-2 pr-2">
-                                  <Link to={`/jobs/${r.job_id}`} className="text-accent hover:underline">
-                                    {r.job_id}
+                                  <Link to={`/jobs/${r.job_id}`} title={r.job_id} className="text-accent hover:underline">
+                                    #{r.config_idx}
                                   </Link>
                                 </td>
-                                <td className="tnum py-2 pr-2 text-xs text-muted">#{r.config_idx}</td>
-                                <td className="py-2 pr-2 text-xs text-muted">{String(r.config.mode ?? "—")}</td>
-                                <td className="py-2 pr-2 text-xs text-muted">{String(r.config.frequency ?? "—")}</td>
-                                <td className="py-2 pr-2 text-xs text-muted">{String(r.config.ambiguity ?? "—")}</td>
+                                <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted">{String(r.config.mode ?? "—")}</td>
+                                <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted">{String(r.config.frequency ?? "—")}</td>
+                                <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted">{String(r.config.ambiguity ?? "—")}</td>
                                 <td className="tnum py-2 pr-2 text-xs text-muted">{configElev(r.config)}</td>
                                 <td className="tnum py-2 pr-2 text-xs text-muted">{configAr(r.config)}</td>
                                 <td className="py-2 pr-2">
@@ -205,7 +204,10 @@ export function BatchDetail() {
                                   )}
                                 </td>
                                 <td className="tnum py-2 pr-2">{r.fix_rate_pct != null ? `${r.fix_rate_pct.toFixed(1)}%` : "—"}</td>
-                                <td className="tnum py-2 pr-2">
+                                <td className="tnum py-2 pr-2 whitespace-nowrap">
+                                  {r.mean_sats != null ? `${r.mean_sats.toFixed(1)} / ${r.min_sats ?? "—"}` : "—"}
+                                </td>
+                                <td className="tnum py-2 pr-2 whitespace-nowrap">
                                   {r.rms_sdn != null ? `${r.rms_sdn.toFixed(3)} / ${r.rms_sde!.toFixed(3)} / ${r.rms_sdu!.toFixed(3)}` : "—"}
                                 </td>
                               </tr>

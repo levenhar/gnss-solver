@@ -287,6 +287,7 @@ def batch_report(batch_id: str) -> BatchReportResponse:
             sol = jobstore.read_solution(jid) if st == "finished" else None
             cfg = jobstore.read_config(jid).model_dump(mode="json")
             fix_rate = sdn = sde = sdu = mean_h = mean_lat = mean_lon = None
+            mean_sats = min_sats = None
             error_type = error_message = None
             if sol is not None:
                 summary = sol.get("summary", {})
@@ -297,6 +298,15 @@ def batch_report(batch_id: str) -> BatchReportResponse:
                 mean_lat = summary.get("mean_lat")
                 mean_lon = summary.get("mean_lon")
                 mean_h = summary.get("mean_h")
+                mean_sats = summary.get("mean_sats")
+                min_sats = summary.get("min_sats")
+                if mean_sats is None and min_sats is None:
+                    # Older solutions predate mean_sats/min_sats in the summary;
+                    # fall back to the raw epochs still stored alongside them.
+                    ns_values = [e["ns"] for e in sol.get("epochs", [])]
+                    if ns_values:
+                        mean_sats = sum(ns_values) / len(ns_values)
+                        min_sats = min(ns_values)
                 if fix_rate is not None:
                     fix_rates.append(fix_rate)
             if st == "failed":
@@ -307,7 +317,8 @@ def batch_report(batch_id: str) -> BatchReportResponse:
             entries.append(BatchReportEntry(
                 job_id=jid, config_idx=j["config_idx"], config=cfg, status=st,
                 fix_rate_pct=fix_rate, rms_sdn=sdn, rms_sde=sde, rms_sdu=sdu,
-                mean_h=mean_h, error_type=error_type, error_message=error_message,
+                mean_h=mean_h, mean_sats=mean_sats, min_sats=min_sats,
+                error_type=error_type, error_message=error_message,
             ))
             if mean_lat is not None and mean_lon is not None:
                 positions.append((len(entries) - 1, mean_lat, mean_lon))

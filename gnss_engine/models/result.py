@@ -63,6 +63,8 @@ class SolutionSummary(BaseModel):
     mean_lat: float | None = None
     mean_lon: float | None = None
     mean_h: float | None = None
+    mean_sats: float | None = None
+    min_sats: int | None = None
 
 
 class Solution(BaseModel):

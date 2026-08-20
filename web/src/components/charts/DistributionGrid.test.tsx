@@ -12,7 +12,7 @@ function entry(overrides: Partial<BatchReportEntry>): BatchReportEntry {
   return {
     job_id: "j", config_idx: 0, config: {}, status: "finished",
     fix_rate_pct: 90, rms_sdn: 0.1, rms_sde: 0.1, rms_sdu: 0.2,
-    utm_e: 500000, utm_n: 3500000, mean_h: 50,
+    utm_e: 500000, utm_n: 3500000, mean_h: 50, mean_sats: 8, min_sats: 6,
     error_type: null, error_message: null,
     ...overrides,
   };

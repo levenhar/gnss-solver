@@ -97,6 +97,8 @@ export interface BatchReportEntry {
   utm_e: number | null;
   utm_n: number | null;
   mean_h: number | null;
+  mean_sats: number | null;
+  min_sats: number | null;
   error_type: string | null;
   error_message: string | null;
 }
