@@ -175,10 +175,10 @@ export function BatchDetail() {
                               <th className="py-2 pr-2 font-medium">Ambiguity</th>
                               <th className="py-2 pr-2 font-medium">Elev mask</th>
                               <th className="py-2 pr-2 font-medium">AR min</th>
-                              <th className="py-2 pr-2 font-medium">Status</th>
                               <th className="py-2 pr-2 font-medium">Fix rate</th>
                               <th className="py-2 pr-2 font-medium">Sats avg/min</th>
                               <th className="py-2 pr-2 font-medium">RMS N/E/U</th>
+                              <th className="py-2 pr-2 font-medium">Status</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -194,6 +194,13 @@ export function BatchDetail() {
                                 <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted">{String(r.config.ambiguity ?? "—")}</td>
                                 <td className="tnum py-2 pr-2 text-xs text-muted">{configElev(r.config)}</td>
                                 <td className="tnum py-2 pr-2 text-xs text-muted">{configAr(r.config)}</td>
+                                <td className="tnum py-2 pr-2">{r.fix_rate_pct != null ? `${r.fix_rate_pct.toFixed(1)}%` : "—"}</td>
+                                <td className="tnum py-2 pr-2 whitespace-nowrap">
+                                  {r.mean_sats != null ? `${r.mean_sats.toFixed(1)} / ${r.min_sats ?? "—"}` : "—"}
+                                </td>
+                                <td className="tnum py-2 pr-2 whitespace-nowrap">
+                                  {r.rms_sdn != null ? `${r.rms_sdn.toFixed(3)} / ${r.rms_sde!.toFixed(3)} / ${r.rms_sdu!.toFixed(3)}` : "—"}
+                                </td>
                                 <td className="py-2 pr-2">
                                   <StatusBadge status={r.status} />
                                   {r.status === "failed" && (r.error_type || r.error_message) && (
@@ -206,13 +213,6 @@ export function BatchDetail() {
                                       )}
                                     </div>
                                   )}
-                                </td>
-                                <td className="tnum py-2 pr-2">{r.fix_rate_pct != null ? `${r.fix_rate_pct.toFixed(1)}%` : "—"}</td>
-                                <td className="tnum py-2 pr-2 whitespace-nowrap">
-                                  {r.mean_sats != null ? `${r.mean_sats.toFixed(1)} / ${r.min_sats ?? "—"}` : "—"}
-                                </td>
-                                <td className="tnum py-2 pr-2 whitespace-nowrap">
-                                  {r.rms_sdn != null ? `${r.rms_sdn.toFixed(3)} / ${r.rms_sde!.toFixed(3)} / ${r.rms_sdu!.toFixed(3)}` : "—"}
                                 </td>
                               </tr>
                             ))}
