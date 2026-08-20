@@ -166,7 +166,7 @@ export function BatchDetail() {
                         <DistributionGrid results={b.results} />
                       </div>
                       <div className="overflow-x-auto">
-                        <table className="text-left text-sm">
+                        <table className="w-full table-fixed text-left text-sm">
                           <thead>
                             <tr className="border-b border-hair text-xs uppercase tracking-wide text-faint">
                               <th className="py-2 pr-2 font-medium">#</th>
@@ -189,22 +189,22 @@ export function BatchDetail() {
                                     #{r.config_idx}
                                   </Link>
                                 </td>
-                                <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted">{String(r.config.mode ?? "—")}</td>
-                                <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted">{String(r.config.frequency ?? "—")}</td>
-                                <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted">{String(r.config.ambiguity ?? "—")}</td>
+                                <td className="py-2 pr-2 text-xs text-muted">{String(r.config.mode ?? "—")}</td>
+                                <td className="py-2 pr-2 text-xs text-muted">{String(r.config.frequency ?? "—")}</td>
+                                <td className="py-2 pr-2 text-xs text-muted">{String(r.config.ambiguity ?? "—")}</td>
                                 <td className="tnum py-2 pr-2 text-xs text-muted">{configElev(r.config)}</td>
                                 <td className="tnum py-2 pr-2 text-xs text-muted">{configAr(r.config)}</td>
                                 <td className="tnum py-2 pr-2">{r.fix_rate_pct != null ? `${r.fix_rate_pct.toFixed(1)}%` : "—"}</td>
-                                <td className="tnum py-2 pr-2 whitespace-nowrap">
+                                <td className="tnum py-2 pr-2">
                                   {r.mean_sats != null ? `${r.mean_sats.toFixed(1)} / ${r.min_sats ?? "—"}` : "—"}
                                 </td>
-                                <td className="tnum py-2 pr-2 whitespace-nowrap">
+                                <td className="tnum py-2 pr-2">
                                   {r.rms_sdn != null ? `${r.rms_sdn.toFixed(3)} / ${r.rms_sde!.toFixed(3)} / ${r.rms_sdu!.toFixed(3)}` : "—"}
                                 </td>
                                 <td className="py-2 pr-2">
                                   <StatusBadge status={r.status} />
                                   {r.status === "failed" && (r.error_type || r.error_message) && (
-                                    <div className="mt-1 max-w-[220px] text-xs text-danger">
+                                    <div className="mt-1 text-xs text-danger">
                                       {r.error_type && <span className="font-medium">{r.error_type}</span>}
                                       {r.error_message && (
                                         <div className="truncate text-danger/80" title={r.error_message}>
