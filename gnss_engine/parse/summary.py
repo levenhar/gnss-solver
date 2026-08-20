@@ -13,6 +13,11 @@ def _rms(values: list[float]) -> float:
     return sqrt(sum(v * v for v in values) / len(values)) if values else 0.0
 
 
+def has_min_satellites(epochs: list[Epoch], min_sats: int = 6) -> bool:
+    """True if every epoch used >= min_sats satellites (Epoch.ns)."""
+    return all(e.ns >= min_sats for e in epochs)
+
+
 def summarize(epochs: list[Epoch]) -> SolutionSummary:
     n = len(epochs)
     n_fix = sum(1 for e in epochs if e.q == 1)

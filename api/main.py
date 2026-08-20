@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import statistics
+import tempfile
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,7 +27,9 @@ from api.schemas import (
     JobStatusResponse,
     RenameRequest,
 )
+from gnss_engine.errors import ParseError, RinexValidationError
 from gnss_engine.models.config import ProcessingConfig, SweepConfig
+from gnss_engine.rinex.decompress import decompress_to
 from gnss_engine.sweep import random_sweep
 from rq.job import Job
 from rq.exceptions import NoSuchJobError
@@ -140,7 +144,21 @@ async def create_batch(
     rover_filename = rover.filename or "rover.rnx"
     rover_bytes = await rover.read()
     nav_uploads = [(nf.filename or "nav", await nf.read()) for nf in nav]
-    configs = random_sweep(sweep=sweep, n=n_configs)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        rover_tmp = tmp_path / rover_filename
+        rover_tmp.write_bytes(rover_bytes)
+        rover_obs_path = decompress_to(rover_tmp, tmp_path / "decompressed")
+        try:
+            configs = random_sweep(sweep=sweep, n=n_configs, rover_obs=rover_obs_path)
+        except RinexValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except ParseError:
+            # Pre-run sat-count check only understands RINEX 2.xx obs
+            # records; skip the guard rather than blocking the batch.
+            configs = random_sweep(sweep=sweep, n=n_configs)
+
     queue = get_queue()
 
     bases_manifest = []
@@ -156,6 +174,7 @@ async def create_batch(
                 jobstore.save_upload(job_id, "nav", nav_filename, nav_bytes)
             jobstore.save_upload(job_id, "base", base_filename, base_bytes)
             jobstore.write_config(job_id, cfg)
+            jobstore.write_job_sweep_config(job_id, sweep)
             queue.enqueue("api.tasks.run_solve_job", job_id, job_id=job_id)
             jobs.append({"job_id": job_id, "config_idx": config_idx})
         bases_manifest.append({"base_id": base_id, "filename": base_filename, "jobs": jobs})

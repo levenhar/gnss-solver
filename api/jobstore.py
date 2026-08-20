@@ -7,7 +7,7 @@ from pathlib import Path
 
 from api.config import get_settings
 from api.schemas import ErrorInfo
-from gnss_engine.models.config import ProcessingConfig
+from gnss_engine.models.config import ProcessingConfig, SweepConfig
 
 _ROLES = ("rover", "base", "nav")
 
@@ -45,6 +45,21 @@ def write_config(job_id: str, config: ProcessingConfig) -> None:
 def read_config(job_id: str) -> ProcessingConfig:
     raw = (job_dir(job_id) / "config.json").read_text(encoding="utf-8")
     return ProcessingConfig.model_validate_json(raw)
+
+
+def write_job_sweep_config(job_id: str, sweep: SweepConfig) -> None:
+    d = job_dir(job_id)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "sweep_config.json").write_text(
+        json.dumps(sweep.model_dump(mode="json")), encoding="utf-8"
+    )
+
+
+def read_job_sweep_config(job_id: str) -> SweepConfig | None:
+    p = job_dir(job_id) / "sweep_config.json"
+    if not p.exists():
+        return None
+    return SweepConfig.model_validate_json(p.read_text(encoding="utf-8"))
 
 
 def resolve_inputs(job_id: str) -> tuple[Path, list[Path], Path | None]:
