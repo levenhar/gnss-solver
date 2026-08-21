@@ -47,6 +47,22 @@ export interface Solution {
   epochs: Epoch[]; sat_stats: SatStat[]; summary: SolutionSummary; engine_log: string;
 }
 
+export interface TimeWindow {
+  t_start: string | null;
+  t_end: string | null;
+}
+export interface TimeSyncFileResult extends TimeWindow {
+  filename: string;
+  overlaps_rover: boolean | null;
+}
+export interface TimeSyncResponse {
+  ok: boolean;
+  rover: TimeWindow | null;
+  bases: TimeSyncFileResult[];
+  nav: TimeSyncFileResult | null;
+  issues: string[];
+}
+
 export type JobStatusValue = "queued" | "started" | "finished" | "failed" | "not_found";
 export interface JobCreated { job_id: string; status: string; name?: string | null; }
 export interface JobListItem { job_id: string; status: string; name?: string | null; }
@@ -147,15 +163,15 @@ export interface SweepConfig {
 
 export const DEFAULT_SWEEP_CONFIG: SweepConfig = {
   mode: "static",
-  constellation_pool: ["GLO", "GAL", "BDS", "QZSS", "SBAS"],
-  elev_mask_range: [0, 90],
+  constellation_pool: ["GLO", "GAL", "BDS"],
+  elev_mask_range: [0, 30],
   ar_ratio_min_range: [1.5, 5],
   ar_min_lock_range: [0, 10],
   ar_min_elev_range: [0, 30],
   snr_mask_dbhz: 15,
-  frequency_pool: ["l1", "l1+l2", "l1+l2+l5"],
-  tropo_pool: ["off", "saastamoinen", "sbas", "estimate-ztd", "estimate-ztd-grad"],
-  iono_pool: ["off", "broadcast", "sbas", "iono-free-lc", "estimate-stec", "ionex"],
-  ambiguity_pool: ["off", "continuous", "instantaneous", "fix-and-hold"],
+  frequency_pool: ["l1+l2"],
+  tropo_pool: ["saastamoinen", "sbas", "estimate-ztd", "estimate-ztd-grad"],
+  iono_pool: ["broadcast", "sbas", "iono-free-lc", "estimate-stec", "ionex"],
+  ambiguity_pool: ["continuous", "instantaneous", "fix-and-hold"],
   ephemeris_pool: ["broadcast", "precise"],
 };

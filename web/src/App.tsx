@@ -5,11 +5,14 @@ import { NewJob } from "./pages/NewJob";
 import { JobDetail } from "./pages/JobDetail";
 import { BatchDetail } from "./pages/BatchDetail";
 import { PageTransition } from "./components/ui/PageTransition";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export default function App() {
   const location = useLocation();
   const nav = useNavigate();
   const canGoBack = location.key !== "default";
+
+  console.log("[App] render, pathname=", location.pathname, "key=", location.key);
 
   return (
     <div className="min-h-screen bg-base text-ink">
@@ -32,14 +35,16 @@ export default function App() {
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">
-        <PageTransition>
-          <Routes>
-            <Route path="/" element={<JobsList />} />
-            <Route path="/new" element={<NewJob />} />
-            <Route path="/jobs/:id" element={<JobDetail />} />
-            <Route path="/batches/:id" element={<BatchDetail />} />
-          </Routes>
-        </PageTransition>
+        <ErrorBoundary>
+          <PageTransition>
+            <Routes location={location}>
+              <Route path="/" element={<JobsList />} />
+              <Route path="/new" element={<NewJob />} />
+              <Route path="/jobs/:id" element={<JobDetail />} />
+              <Route path="/batches/:id" element={<BatchDetail />} />
+            </Routes>
+          </PageTransition>
+        </ErrorBoundary>
       </main>
     </div>
   );

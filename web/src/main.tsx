@@ -6,6 +6,9 @@ import App from "./App";
 import "leaflet/dist/leaflet.css";
 import "./index.css";
 
+window.addEventListener("error", (e) => console.error("[window error]", e.error ?? e.message));
+window.addEventListener("unhandledrejection", (e) => console.error("[unhandled rejection]", e.reason));
+
 const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

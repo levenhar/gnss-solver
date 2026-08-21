@@ -28,11 +28,22 @@ export function DistributionGrid({ results }: { results: BatchReportEntry[] }) {
               ` · μ ${mean(m.values).toFixed(m.decimals)} · σ ${stdDev(m.values).toFixed(m.decimals)}`}
           </div>
           {m.values.length ? (
-            <PlotlyChart
-              data={distributionData(m.values, m.color)}
-              layout={{ yaxis: { title: "count" } }}
-              height={220}
-            />
+            (() => {
+              const { data, shapes } = distributionData(m.values, m.color);
+              return (
+                <PlotlyChart
+                  data={data}
+                  layout={{
+                    yaxis: { title: "count" },
+                    xaxis: { title: "deviation from mean" },
+                    shapes,
+                    showlegend: true,
+                    legend: { orientation: "h", x: 0, y: 1.15 },
+                  }}
+                  height={220}
+                />
+              );
+            })()
           ) : (
             <div className="flex h-[220px] items-center justify-center text-sm text-muted">no data</div>
           )}

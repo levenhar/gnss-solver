@@ -1,7 +1,9 @@
 import type { Data } from "plotly.js-dist-min";
+import type { Shape } from "plotly.js";
 import type { BatchReportEntry, Solution } from "../api/types";
 import { qColor } from "./quality";
 import { llhToEnu, meanLatLon } from "./geodesy";
+import { mean, stdDev } from "./stats";
 
 export function groundTrackData(sol: Solution): Partial<Data>[] {
   const ref0 = meanLatLon(sol.epochs);
@@ -26,11 +28,40 @@ export function arRatioData(sol: Solution): Partial<Data>[] {
   return [{ x: sol.epochs.map((e) => e.t), y: sol.epochs.map((e) => e.ratio), mode: "lines", type: "scatter", line: { color: "#eab308" } }];
 }
 
-export function residualData(sol: Solution): Partial<Data>[] {
+const SIGMA_LINE_COLOR = "#94a3b8";
+
+function sigmaShapes(sd: number): Partial<Shape>[] {
+  if (sd <= 0) return [];
+  return [-2, -1, 1, 2].map((k) => ({
+    type: "line", xref: "x", yref: "paper",
+    x0: k * sd, x1: k * sd, y0: 0, y1: 1,
+    line: { color: SIGMA_LINE_COLOR, dash: Math.abs(k) === 1 ? "dash" : "dot", width: 1.5 },
+  }));
+}
+
+function sigmaLegendTraces(): Partial<Data>[] {
   return [
-    { x: sol.sat_stats.map((s) => s.res_p), type: "histogram", name: "pseudorange", opacity: 0.6, marker: { color: "#38bdf8" } },
-    { x: sol.sat_stats.map((s) => s.res_c), type: "histogram", name: "carrier", opacity: 0.6, marker: { color: "#eab308" } },
+    { x: [null], y: [null], mode: "lines", type: "scatter", line: { color: SIGMA_LINE_COLOR, dash: "dash", width: 1.5 }, name: "±1σ" },
+    { x: [null], y: [null], mode: "lines", type: "scatter", line: { color: SIGMA_LINE_COLOR, dash: "dot", width: 1.5 }, name: "±2σ" },
   ];
+}
+
+export function residualData(sol: Solution): { data: Partial<Data>[]; shapes: Partial<Shape>[] } {
+  const series = [
+    { values: sol.sat_stats.map((s) => s.res_p), name: "pseudorange", color: "#38bdf8" },
+    { values: sol.sat_stats.map((s) => s.res_c), name: "carrier", color: "#eab308" },
+  ];
+  const data: Partial<Data>[] = [];
+  const shapes: Partial<Shape>[] = [];
+  for (const s of series) {
+    const m = mean(s.values);
+    data.push({
+      x: s.values.map((v) => v - m), type: "histogram", name: s.name, opacity: 0.6, marker: { color: s.color },
+    });
+    shapes.push(...sigmaShapes(stdDev(s.values)));
+  }
+  if (shapes.length > 0) data.push(...sigmaLegendTraces());
+  return { data, shapes };
 }
 
 export function skyplotData(sol: Solution): Partial<Data>[] {
@@ -43,8 +74,17 @@ export function skyplotData(sol: Solution): Partial<Data>[] {
   }];
 }
 
-export function distributionData(values: number[], color: string): Partial<Data>[] {
-  return [{ x: values, type: "histogram", marker: { color } }];
+export function distributionData(
+  values: number[],
+  color: string
+): { data: Partial<Data>[]; shapes: Partial<Shape>[] } {
+  const m = mean(values);
+  const sd = stdDev(values);
+  const centered = values.map((v) => v - m);
+  const data: Partial<Data>[] = [{ x: centered, type: "histogram", marker: { color }, name: "distribution", showlegend: false }];
+  const shapes = sigmaShapes(sd);
+  if (shapes.length > 0) data.push(...sigmaLegendTraces());
+  return { data, shapes };
 }
 
 const CHI_SQ_95_2DOF = 5.991;

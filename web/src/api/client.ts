@@ -1,4 +1,14 @@
-import type { BatchCreated, BatchListItem, BatchReport, BatchStatus, JobCreated, JobListItem, JobStatus, Solution } from "./types";
+import type {
+  BatchCreated,
+  BatchListItem,
+  BatchReport,
+  BatchStatus,
+  JobCreated,
+  JobListItem,
+  JobStatus,
+  Solution,
+  TimeSyncResponse,
+} from "./types";
 
 export function apiBase(): string {
   return (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://localhost:8000";
@@ -36,6 +46,9 @@ export const client = {
   },
   async createBatch(form: FormData): Promise<BatchCreated> {
     return parse(await fetch(`${apiBase()}/batches`, { method: "POST", body: form }));
+  },
+  async checkTimeSync(form: FormData, signal?: AbortSignal): Promise<TimeSyncResponse> {
+    return parse(await fetch(`${apiBase()}/validate/time-sync`, { method: "POST", body: form, signal }));
   },
   async listBatches(): Promise<BatchListItem[]> {
     return parse(await fetch(`${apiBase()}/batches`));

@@ -26,10 +26,14 @@ from api.schemas import (
     JobListItem,
     JobStatusResponse,
     RenameRequest,
+    TimeSyncFileResult,
+    TimeSyncResponse,
+    TimeWindow,
 )
-from gnss_engine.errors import ParseError, RinexValidationError
+from gnss_engine.errors import DecompressError, ParseError, RinexValidationError
 from gnss_engine.models.config import ProcessingConfig, SweepConfig
 from gnss_engine.rinex.decompress import decompress_to
+from gnss_engine.rinex.header import parse_header, parse_nav_time_range
 from gnss_engine.sweep import random_sweep
 from rq.job import Job
 from rq.exceptions import NoSuchJobError
@@ -69,13 +73,16 @@ def _rq_status(job_id: str) -> str | None:
 
 
 def _status(job_id: str) -> str:
-    rq = _rq_status(job_id)
-    if rq is not None:
-        return rq
+    # Finished/failed jobs are terminal and already flushed to disk, so check
+    # there first — avoids a Redis round-trip per job on every list poll,
+    # which dominates latency once thousands of historical jobs pile up.
     if jobstore.read_solution(job_id) is not None:
         return "finished"
     if jobstore.read_error(job_id) is not None:
         return "failed"
+    rq = _rq_status(job_id)
+    if rq is not None:
+        return rq
     if jobstore.job_dir(job_id).exists():
         return "queued"
     return "not_found"
@@ -190,6 +197,97 @@ async def create_batch(
     if clean_name:
         jobstore.write_batch_name(batch_id, clean_name)
     return BatchCreated(batch_id=batch_id, status="queued", n_bases=len(base), n_configs=n_configs, name=clean_name)
+
+
+def _windows_overlap(
+    a_start: datetime | None, a_end: datetime | None, b_start: datetime | None, b_end: datetime | None
+) -> bool | None:
+    """None means "can't tell" (a window is missing) - never blocks on that."""
+    if a_start is None or a_end is None or b_start is None or b_end is None:
+        return None
+    return a_start <= b_end and b_start <= a_end
+
+
+def _fmt_window(t_start: datetime | None, t_end: datetime | None) -> str:
+    if t_start is None or t_end is None:
+        return "unknown time range"
+    return f"{t_start.isoformat()} to {t_end.isoformat()}"
+
+
+async def _obs_time_window(upload: UploadFile, tmp_path: Path, tag: str) -> TimeWindow:
+    safe_name = Path(upload.filename or tag).name or tag
+    dest = tmp_path / f"{tag}_{safe_name}"
+    dest.write_bytes(await upload.read())
+    try:
+        obs_path = decompress_to(dest, tmp_path / "decompressed")
+        meta = parse_header(obs_path)
+    except DecompressError:
+        return TimeWindow()
+    return TimeWindow(t_start=meta.t_start, t_end=meta.t_end)
+
+
+@app.post("/validate/time-sync", response_model=TimeSyncResponse)
+async def validate_time_sync(
+    rover: UploadFile = File(...),
+    nav: list[UploadFile] = File(...),
+    base: list[UploadFile] = File([]),
+) -> TimeSyncResponse:
+    if not nav:
+        raise HTTPException(status_code=422, detail="at least one nav file is required")
+
+    issues: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+
+        rover_window = await _obs_time_window(rover, tmp_path, "rover")
+
+        base_results: list[TimeSyncFileResult] = []
+        for idx, bf in enumerate(base):
+            base_window = await _obs_time_window(bf, tmp_path, f"base{idx}")
+            overlaps = _windows_overlap(rover_window.t_start, rover_window.t_end, base_window.t_start, base_window.t_end)
+            if overlaps is False:
+                issues.append(
+                    f"Rover ({_fmt_window(rover_window.t_start, rover_window.t_end)}) and base "
+                    f"'{bf.filename}' ({_fmt_window(base_window.t_start, base_window.t_end)}) "
+                    "do not overlap in time."
+                )
+            base_results.append(TimeSyncFileResult(
+                filename=bf.filename or f"base{idx}",
+                t_start=base_window.t_start, t_end=base_window.t_end,
+                overlaps_rover=overlaps,
+            ))
+
+        nav_t_min: datetime | None = None
+        nav_t_max: datetime | None = None
+        for idx, nf in enumerate(nav):
+            safe_name = Path(nf.filename or "nav").name or "nav"
+            nav_dest = tmp_path / f"nav{idx}_{safe_name}"
+            nav_dest.write_bytes(await nf.read())
+            try:
+                nav_obs = decompress_to(nav_dest, tmp_path / "decompressed")
+                t0, t1 = parse_nav_time_range(nav_obs)
+            except DecompressError:
+                t0 = t1 = None
+            if t0 is not None and (nav_t_min is None or t0 < nav_t_min):
+                nav_t_min = t0
+            if t1 is not None and (nav_t_max is None or t1 > nav_t_max):
+                nav_t_max = t1
+
+        nav_result = None
+        if nav_t_min is not None and nav_t_max is not None:
+            nav_overlaps = _windows_overlap(rover_window.t_start, rover_window.t_end, nav_t_min, nav_t_max)
+            if nav_overlaps is False:
+                issues.append(
+                    f"Rover ({_fmt_window(rover_window.t_start, rover_window.t_end)}) and navigation "
+                    f"({_fmt_window(nav_t_min, nav_t_max)}) do not overlap in time."
+                )
+            nav_result = TimeSyncFileResult(
+                filename=(nav[0].filename or "nav") if len(nav) == 1 else f"{len(nav)} nav files",
+                t_start=nav_t_min, t_end=nav_t_max,
+                overlaps_rover=nav_overlaps,
+            )
+
+    return TimeSyncResponse(ok=not issues, rover=rover_window, bases=base_results, nav=nav_result, issues=issues)
 
 
 def _batch_base_counts(job_ids: list[str]) -> tuple[int, int, int]:

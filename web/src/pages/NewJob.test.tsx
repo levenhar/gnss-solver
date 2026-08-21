@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -14,6 +14,13 @@ function wrap() {
 }
 
 describe("NewJob batch mode", () => {
+  beforeEach(() => {
+    // Time-sync auto-check fires whenever rover+nav files are present; keep it
+    // resolved "ok" here so tests unrelated to time-sync aren't gated on a
+    // real network call. Dedicated time-sync tests override this per-case.
+    vi.spyOn(client, "checkTimeSync").mockResolvedValue({ ok: true, rover: null, bases: [], nav: null, issues: [] });
+  });
+
   it("shows single config form by default and hides multi-base add button", () => {
     wrap();
     expect(screen.queryByText(/\+ Add base/i)).not.toBeInTheDocument();
@@ -40,7 +47,10 @@ describe("NewJob batch mode", () => {
     const baseInputs = screen.getAllByLabelText(/base \d/i);
     await user.upload(baseInputs[0], new File(["x"], "b1.obs"));
 
-    await user.click(screen.getByRole("button", { name: /submit/i }));
+    // Submit stays disabled until the debounced time-sync check (mocked "ok" above) resolves.
+    const submitButton = screen.getByRole("button", { name: /submit/i });
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
+    await user.click(submitButton);
     await waitFor(() => expect(client.createBatch).toHaveBeenCalled());
   });
 
@@ -86,5 +96,25 @@ describe("NewJob batch mode", () => {
     expect(baseInputsAfter[0]).toHaveAccessibleName(/base 1/i);
     // The remaining row should carry forward the second file, not the first.
     expect(baseInputsAfter[0].files?.[0]?.name).toBe("second.obs");
+  });
+
+  it("blocks submit and shows issues when the time-sync check reports a mismatch", async () => {
+    vi.spyOn(client, "checkTimeSync").mockResolvedValue({
+      ok: false,
+      rover: null,
+      bases: [],
+      nav: null,
+      issues: ["Rover and base 'b.obs' do not overlap in time."],
+    });
+    const user = userEvent.setup();
+    wrap();
+
+    const roverInput = screen.getByLabelText(/rover/i) as HTMLInputElement;
+    await user.upload(roverInput, new File(["x"], "r.rnx"));
+    const navInput = screen.getByLabelText(/navigation/i) as HTMLInputElement;
+    await user.upload(navInput, new File(["x"], "a.nav"));
+
+    await waitFor(() => expect(screen.getByText(/do not overlap in time/i)).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
   });
 });

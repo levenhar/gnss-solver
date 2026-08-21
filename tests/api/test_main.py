@@ -528,6 +528,152 @@ def test_post_batch_manifest_stores_sweep_config(client):
     assert manifest["sweep_config"]["mode"] == "static"
 
 
+def _obs_time_field(y, mo, d, h, mi, s, label) -> str:
+    core = f"{y:6d}{mo:6d}{d:6d}{h:6d}{mi:6d}{s:13.7f}"
+    return core + " GPS".ljust(17) + label.ljust(20)
+
+
+def _obs_header(y, mo, d, h, mi, s, y2, mo2, d2, h2, mi2, s2) -> bytes:
+    return (
+        "     3.04           OBSERVATION DATA    M                   RINEX VERSION / TYPE\n"
+        "TEST                                                        MARKER NAME\n"
+        + _obs_time_field(y, mo, d, h, mi, s, "TIME OF FIRST OBS") + "\n"
+        + _obs_time_field(y2, mo2, d2, h2, mi2, s2, "TIME OF LAST OBS") + "\n"
+        + "                                                            END OF HEADER\n"
+    ).encode("ascii")
+
+
+def _nav_body(y, mo, d, h, mi, s) -> bytes:
+    return (
+        "     2.10           N: GPS NAV DATA                         RINEX VERSION / TYPE\n"
+        "                                                            END OF HEADER\n"
+        f" 5 {y:2d} {mo:2d} {d:2d} {h:2d} {mi:2d}{s:5.1f} 0.000000000000D+00 0.000000000000D+00 0.000000000000D+00\n"
+        "    0.000000000000D+00 0.000000000000D+00 0.000000000000D+00 0.000000000000D+00\n"
+        "    0.000000000000D+00 0.000000000000D+00 0.000000000000D+00 0.000000000000D+00\n"
+        "    0.000000000000D+00 0.000000000000D+00 0.000000000000D+00 0.000000000000D+00\n"
+        "    0.000000000000D+00 0.000000000000D+00 0.000000000000D+00 0.000000000000D+00\n"
+        "    0.000000000000D+00 0.000000000000D+00 0.000000000000D+00 0.000000000000D+00\n"
+        "    0.000000000000D+00 0.000000000000D+00 0.000000000000D+00 0.000000000000D+00\n"
+        "    0.000000000000D+00 0.000000000000D+00\n"
+    ).encode("ascii")
+
+
+# Day-1 window, e.g. rover
+_ROVER_DAY1 = _obs_header(2024, 1, 1, 0, 0, 0.0, 2024, 1, 1, 23, 59, 30.0)
+# Overlaps day-1 (same day, later hours)
+_BASE_DAY1 = _obs_header(2024, 1, 1, 0, 0, 0.0, 2024, 1, 1, 23, 59, 59.0)
+# Entirely different day - no overlap with day-1
+_BASE_DAY5 = _obs_header(2024, 1, 5, 0, 0, 0.0, 2024, 1, 5, 23, 59, 59.0)
+_NAV_DAY1 = _nav_body(24, 1, 1, 12, 0, 0.0)
+_NAV_DAY5 = _nav_body(24, 1, 5, 12, 0, 0.0)
+
+
+def test_time_sync_overlapping_rover_and_base_is_ok(client):
+    resp = client.post(
+        "/validate/time-sync",
+        files=[
+            ("rover", ("r.rnx", _ROVER_DAY1, "application/octet-stream")),
+            ("nav", ("n.nav", _NAV_DAY1, "application/octet-stream")),
+            ("base", ("b.rnx", _BASE_DAY1, "application/octet-stream")),
+        ],
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["issues"] == []
+    assert body["bases"][0]["overlaps_rover"] is True
+
+
+def test_time_sync_mismatched_base_day_is_blocked(client):
+    resp = client.post(
+        "/validate/time-sync",
+        files=[
+            ("rover", ("r.rnx", _ROVER_DAY1, "application/octet-stream")),
+            ("nav", ("n.nav", _NAV_DAY1, "application/octet-stream")),
+            ("base", ("b.rnx", _BASE_DAY5, "application/octet-stream")),
+        ],
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is False
+    assert body["bases"][0]["overlaps_rover"] is False
+    assert len(body["issues"]) == 1
+    assert "b.rnx" in body["issues"][0]
+
+
+def test_time_sync_mismatched_nav_day_is_blocked(client):
+    resp = client.post(
+        "/validate/time-sync",
+        files=[
+            ("rover", ("r.rnx", _ROVER_DAY1, "application/octet-stream")),
+            ("nav", ("n.nav", _NAV_DAY5, "application/octet-stream")),
+        ],
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is False
+    assert body["nav"]["overlaps_rover"] is False
+    assert len(body["issues"]) == 1
+
+
+def test_time_sync_unparseable_rover_header_skips_check(client):
+    resp = client.post(
+        "/validate/time-sync",
+        files=[
+            ("rover", ("r.rnx", b"not a real rinex file", "application/octet-stream")),
+            ("nav", ("n.nav", _NAV_DAY1, "application/octet-stream")),
+            ("base", ("b.rnx", _BASE_DAY5, "application/octet-stream")),
+        ],
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["issues"] == []
+    assert body["bases"][0]["overlaps_rover"] is None
+
+
+def test_time_sync_multi_base_flags_only_mismatched_one(client):
+    resp = client.post(
+        "/validate/time-sync",
+        files=[
+            ("rover", ("r.rnx", _ROVER_DAY1, "application/octet-stream")),
+            ("nav", ("n.nav", _NAV_DAY1, "application/octet-stream")),
+            ("base", ("good.rnx", _BASE_DAY1, "application/octet-stream")),
+            ("base", ("bad.rnx", _BASE_DAY5, "application/octet-stream")),
+        ],
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is False
+    overlaps = {b["filename"]: b["overlaps_rover"] for b in body["bases"]}
+    assert overlaps["good.rnx"] is True
+    assert overlaps["bad.rnx"] is False
+    assert len(body["issues"]) == 1
+    assert "bad.rnx" in body["issues"][0]
+
+
+def test_time_sync_no_base_only_checks_nav(client):
+    resp = client.post(
+        "/validate/time-sync",
+        files=[
+            ("rover", ("r.rnx", _ROVER_DAY1, "application/octet-stream")),
+            ("nav", ("n.nav", _NAV_DAY1, "application/octet-stream")),
+        ],
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["bases"] == []
+
+
+def test_time_sync_requires_at_least_one_nav_file(client):
+    resp = client.post(
+        "/validate/time-sync",
+        files=[("rover", ("r.rnx", _ROVER_DAY1, "application/octet-stream"))],
+    )
+    assert resp.status_code == 422
+
+
 def test_post_batch_applies_sweep_config_bounds_to_generated_jobs(client):
     # NOTE: deviates from the brief's literal `constellation_pool=[]` — SweepConfig
     # (Task 1) validates all pool fields, including constellation_pool, as non-empty

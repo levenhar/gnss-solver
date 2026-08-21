@@ -24,21 +24,50 @@ describe("chartData", () => {
     expect((arRatioData(sol)[0].y as number[]).length).toBe(2);
   });
   it("residual + skyplot derive from sat_stats", () => {
-    expect(residualData(sol).length).toBeGreaterThan(0);
+    expect(residualData(sol).data.length).toBeGreaterThan(0);
     const sky = skyplotData(sol);
     expect((sky[0].r as number[])[0]).toBeCloseTo(45); // 90 - el
   });
 });
 
+describe("residualData", () => {
+  it("centers each series on its own mean", () => {
+    const { data } = residualData(sol);
+    expect(data[0]).toMatchObject({ x: [0], name: "pseudorange" }); // single sat_stats entry -> mean subtracted to 0
+    expect(data[1]).toMatchObject({ x: [0], name: "carrier" });
+  });
+
+  it("has no sigma shapes/legend with a single data point (std dev 0)", () => {
+    const { data, shapes } = residualData(sol);
+    expect(shapes).toHaveLength(0);
+    expect(data).toHaveLength(2); // just the two histograms, no legend-only lines
+  });
+});
+
 describe("distributionData", () => {
-  it("builds a single histogram trace from the values", () => {
-    const traces = distributionData([1, 2, 3], "#38bdf8");
-    expect(traces).toHaveLength(1);
-    expect(traces[0]).toMatchObject({ x: [1, 2, 3], type: "histogram", marker: { color: "#38bdf8" } });
+  it("centers the histogram trace on zero by subtracting the mean", () => {
+    const { data } = distributionData([1, 2, 3], "#38bdf8");
+    expect(data[0]).toMatchObject({ x: [-1, 0, 1], type: "histogram", marker: { color: "#38bdf8" } });
+  });
+
+  it("adds ±1σ/±2σ shapes and matching legend traces", () => {
+    const { data, shapes } = distributionData([1, 2, 3], "#38bdf8");
+    expect(shapes).toHaveLength(4);
+    const sd = Math.sqrt(2 / 3);
+    expect(shapes.map((s) => s.x0)).toEqual([-2 * sd, -1 * sd, 1 * sd, 2 * sd]);
+    expect(data).toHaveLength(3); // histogram + 2 legend-only lines
+    expect(data[1].name).toBe("±1σ");
+    expect(data[2].name).toBe("±2σ");
+  });
+
+  it("skips sigma shapes/legend when std dev is zero", () => {
+    const { data, shapes } = distributionData([5, 5], "#38bdf8");
+    expect(shapes).toHaveLength(0);
+    expect(data).toHaveLength(1);
   });
 
   it("handles an empty array", () => {
-    const traces = distributionData([], "#38bdf8");
-    expect(traces[0].x).toEqual([]);
+    const { data } = distributionData([], "#38bdf8");
+    expect(data[0].x).toEqual([]);
   });
 });

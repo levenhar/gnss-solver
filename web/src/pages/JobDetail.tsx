@@ -12,21 +12,30 @@ import { Card } from "../components/ui/Card";
 
 export function JobDetail() {
   const { id = "" } = useParams();
+  console.log("[JobDetail] render, id=", id);
   const qc = useQueryClient();
   const status = useQuery({
     queryKey: ["job", id],
-    queryFn: () => client.getJob(id),
+    queryFn: () => {
+      console.log("[JobDetail] fetching job status for", id);
+      return client.getJob(id);
+    },
     refetchInterval: (q) => {
       const s = q.state.data?.status;
       return s === "queued" || s === "started" ? 2000 : false;
     },
   });
+  console.log("[JobDetail] status query:", { isLoading: status.isLoading, isError: status.isError, error: status.error, data: status.data });
   const finished = status.data?.status === "finished";
   const result = useQuery({
     queryKey: ["result", id],
-    queryFn: () => client.getResult(id),
+    queryFn: () => {
+      console.log("[JobDetail] fetching result for", id);
+      return client.getResult(id);
+    },
     enabled: finished,
   });
+  console.log("[JobDetail] result query:", { isLoading: result.isLoading, isError: result.isError, error: result.error, hasData: !!result.data });
   const rename = useMutation({
     mutationFn: (name: string) => client.renameJob(id, name),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["job", id] }),

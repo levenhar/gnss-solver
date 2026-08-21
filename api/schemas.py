@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -100,3 +102,21 @@ class BatchBaseReport(BaseModel):
 class BatchReportResponse(BaseModel):
     batch_id: str
     bases: list[BatchBaseReport]
+
+
+class TimeWindow(BaseModel):
+    t_start: datetime | None = None
+    t_end: datetime | None = None
+
+
+class TimeSyncFileResult(TimeWindow):
+    filename: str
+    overlaps_rover: bool | None = None
+
+
+class TimeSyncResponse(BaseModel):
+    ok: bool
+    rover: TimeWindow | None = None
+    bases: list[TimeSyncFileResult] = []
+    nav: TimeSyncFileResult | None = None
+    issues: list[str] = []

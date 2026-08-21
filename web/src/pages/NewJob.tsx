@@ -6,6 +6,7 @@ import { DEFAULT_CONFIG, DEFAULT_SWEEP_CONFIG, type ProcessingConfig, type Sweep
 import { client } from "../api/client";
 import { buildJobForm, type JobFiles } from "../lib/buildJobForm";
 import { buildBatchForm, type BatchFiles } from "../lib/buildBatchForm";
+import { useTimeSyncCheck } from "../lib/useTimeSyncCheck";
 import { FileUploads } from "../components/FileUploads";
 import { BatchFileUploads } from "../components/BatchFileUploads";
 import { ConfigForm } from "../components/ConfigForm";
@@ -33,25 +34,37 @@ export function NewJob() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const singleTimeSync = useTimeSyncCheck(files.rover, [files.base], files.nav);
+  const batchTimeSync = useTimeSyncCheck(batchFiles.rover, batchFiles.bases, batchFiles.nav);
+  const timeSync = mode === "single" ? singleTimeSync : batchTimeSync;
+
   const canSubmit =
     !busy &&
+    timeSync.status !== "blocked" &&
+    timeSync.status !== "checking" &&
     (mode === "single"
       ? !!files.rover && files.nav.length > 0
       : !!batchFiles.rover && batchFiles.nav.length > 0 && batchFiles.bases.length > 0 && batchFiles.bases.every(Boolean));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    console.log("[NewJob] submit start, mode=", mode);
     setError(null);
     setBusy(true);
     try {
       if (mode === "single") {
         const res = await client.createJob(buildJobForm(files, config, name));
+        console.log("[NewJob] createJob resolved", res, "navigating to /jobs/" + res.job_id);
         nav(`/jobs/${res.job_id}`);
+        console.log("[NewJob] nav() called");
       } else {
         const res = await client.createBatch(buildBatchForm(batchFiles, sweepConfig, 100, name));
+        console.log("[NewJob] createBatch resolved", res, "navigating to /batches/" + res.batch_id);
         nav(`/batches/${res.batch_id}`);
+        console.log("[NewJob] nav() called");
       }
     } catch (err) {
+      console.error("[NewJob] submit failed", err);
       setError(err instanceof Error ? err.message : "submit failed");
       setBusy(false);
     }
@@ -99,6 +112,22 @@ export function NewJob() {
       <Card className="p-4">
         {mode === "single" ? <FileUploads value={files} onChange={setFiles} /> : <BatchFileUploads value={batchFiles} onChange={setBatchFiles} />}
       </Card>
+
+      {timeSync.status === "checking" && (
+        <p className="text-sm text-muted">Checking time sync between rover, base and navigation files…</p>
+      )}
+      {timeSync.status === "blocked" && (
+        <div className="space-y-1 rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger">
+          <p className="flex items-center gap-2 font-medium">
+            <TriangleAlert size={15} /> Time sync check failed
+          </p>
+          <ul className="ml-6 list-disc space-y-0.5">
+            {timeSync.issues.map((issue, i) => (
+              <li key={i}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <AnimatePresence initial={false}>
         <motion.div
