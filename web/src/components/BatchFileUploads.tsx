@@ -90,16 +90,18 @@ export function BatchFileUploads({ value, onChange }: { value: BatchFiles; onCha
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <select
-                  aria-label={`Base ${i + 1} coordinate mode`}
-                  className={selCls}
-                  value={b.base_coord_mode}
-                  onChange={(e) => setBaseCoordMode(i, e.target.value as BaseCoordMode)}
-                >
-                  {BASEMODES.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
+                <div className="w-36 shrink-0">
+                  <select
+                    aria-label={`Base ${i + 1} coordinate mode`}
+                    className={selCls}
+                    value={b.base_coord_mode}
+                    onChange={(e) => setBaseCoordMode(i, e.target.value as BaseCoordMode)}
+                  >
+                    {BASEMODES.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
                 {b.base_coord_mode !== "single" && (
                   <div className="grid flex-1 grid-cols-3 gap-2">
                     {([0, 1, 2] as const).map((axis) => (
