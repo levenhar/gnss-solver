@@ -11,7 +11,10 @@ describe("buildBatchForm", () => {
     const files: BatchFiles = {
       rover: file("r.rnx"),
       nav: [file("a.nav"), file("b.nav")],
-      bases: [file("base1.obs"), file("base2.obs")],
+      bases: [
+        { file: file("base1.obs"), base_coord_mode: "single", base_coord: null },
+        { file: file("base2.obs"), base_coord_mode: "known-llh", base_coord: [32, 34, 50] },
+      ],
     };
     const fd = buildBatchForm(files, DEFAULT_SWEEP_CONFIG, 100);
     expect((fd.get("rover") as File).name).toBe("r.rnx");
@@ -19,10 +22,18 @@ describe("buildBatchForm", () => {
     expect(fd.getAll("base").map((f) => (f as File).name)).toEqual(["base1.obs", "base2.obs"]);
     expect(fd.get("n_configs")).toBe("100");
     expect(JSON.parse(fd.get("sweep_config") as string)).toEqual(DEFAULT_SWEEP_CONFIG);
+    expect(JSON.parse(fd.get("base_coords") as string)).toEqual([
+      { mode: "single", coord: null },
+      { mode: "known-llh", coord: [32, 34, 50] },
+    ]);
   });
 
   it("defaults n_configs to 100 when omitted", () => {
-    const files: BatchFiles = { rover: file("r.rnx"), nav: [file("a.nav")], bases: [file("b.obs")] };
+    const files: BatchFiles = {
+      rover: file("r.rnx"),
+      nav: [file("a.nav")],
+      bases: [{ file: file("b.obs"), base_coord_mode: "single", base_coord: null }],
+    };
     const fd = buildBatchForm(files, DEFAULT_SWEEP_CONFIG);
     expect(fd.get("n_configs")).toBe("100");
   });
@@ -31,7 +42,12 @@ describe("buildBatchForm", () => {
     const files: BatchFiles = {
       rover: file("r.rnx"),
       nav: [file("a.nav")],
-      bases: [file("base1.obs"), null, file("base2.obs"), null],
+      bases: [
+        { file: file("base1.obs"), base_coord_mode: "single", base_coord: null },
+        { file: null, base_coord_mode: "single", base_coord: null },
+        { file: file("base2.obs"), base_coord_mode: "single", base_coord: null },
+        { file: null, base_coord_mode: "single", base_coord: null },
+      ],
     };
     const fd = buildBatchForm(files, DEFAULT_SWEEP_CONFIG);
     expect(fd.getAll("base").map((f) => (f as File).name)).toEqual(["base1.obs", "base2.obs"]);
@@ -48,13 +64,21 @@ describe("buildBatchForm", () => {
   });
 
   it("includes a trimmed name field when provided", () => {
-    const files: BatchFiles = { rover: file("r.rnx"), nav: [file("a.nav")], bases: [file("b.obs")] };
+    const files: BatchFiles = {
+      rover: file("r.rnx"),
+      nav: [file("a.nav")],
+      bases: [{ file: file("b.obs"), base_coord_mode: "single", base_coord: null }],
+    };
     const fd = buildBatchForm(files, DEFAULT_SWEEP_CONFIG, 100, "  Sweep A  ");
     expect(fd.get("name")).toBe("Sweep A");
   });
 
   it("omits the name field when absent", () => {
-    const files: BatchFiles = { rover: file("r.rnx"), nav: [file("a.nav")], bases: [file("b.obs")] };
+    const files: BatchFiles = {
+      rover: file("r.rnx"),
+      nav: [file("a.nav")],
+      bases: [{ file: file("b.obs"), base_coord_mode: "single", base_coord: null }],
+    };
     const fd = buildBatchForm(files, DEFAULT_SWEEP_CONFIG);
     expect(fd.get("name")).toBeNull();
   });

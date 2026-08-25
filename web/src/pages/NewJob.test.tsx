@@ -44,7 +44,7 @@ describe("NewJob batch mode", () => {
     await user.upload(roverInput, new File(["x"], "r.rnx"));
     const navInput = screen.getByLabelText(/navigation/i) as HTMLInputElement;
     await user.upload(navInput, new File(["x"], "a.nav"));
-    const baseInputs = screen.getAllByLabelText(/base \d/i);
+    const baseInputs = screen.getAllByLabelText(/^base \d+$/i);
     await user.upload(baseInputs[0], new File(["x"], "b1.obs"));
 
     // Submit stays disabled until the debounced time-sync check (mocked "ok" above) resolves.
@@ -82,16 +82,16 @@ describe("NewJob batch mode", () => {
 
     // Batch mode starts with 1 base slot; add a second so there are 2 rows.
     await user.click(screen.getByText(/\+ Add base/i));
-    expect(screen.getAllByLabelText(/base \d/i)).toHaveLength(2);
+    expect(screen.getAllByLabelText(/^base \d+$/i)).toHaveLength(2);
 
-    const baseInputsBefore = screen.getAllByLabelText(/base \d/i) as HTMLInputElement[];
+    const baseInputsBefore = screen.getAllByLabelText(/^base \d+$/i) as HTMLInputElement[];
     await user.upload(baseInputsBefore[0], new File(["x"], "first.obs"));
     await user.upload(baseInputsBefore[1], new File(["x"], "second.obs"));
 
     const removeButtons = screen.getAllByRole("button", { name: /remove/i });
     await user.click(removeButtons[0]);
 
-    const baseInputsAfter = screen.getAllByLabelText(/base \d/i) as HTMLInputElement[];
+    const baseInputsAfter = screen.getAllByLabelText(/^base \d+$/i) as HTMLInputElement[];
     expect(baseInputsAfter).toHaveLength(1);
     expect(baseInputsAfter[0]).toHaveAccessibleName(/base 1/i);
     // The remaining row should carry forward the second file, not the first.
