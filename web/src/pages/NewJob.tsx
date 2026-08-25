@@ -28,14 +28,18 @@ export function NewJob() {
   const [mode, setMode] = useState<Mode>("single");
   const [name, setName] = useState("");
   const [files, setFiles] = useState<JobFiles>({ rover: null, base: null, nav: [] });
-  const [batchFiles, setBatchFiles] = useState<BatchFiles>({ rover: null, nav: [], bases: [null] });
+  const [batchFiles, setBatchFiles] = useState<BatchFiles>({
+    rover: null,
+    nav: [],
+    bases: [{ file: null, base_coord_mode: "single", base_coord: null }],
+  });
   const [config, setConfig] = useState<ProcessingConfig>(DEFAULT_CONFIG);
   const [sweepConfig, setSweepConfig] = useState<SweepConfig>(DEFAULT_SWEEP_CONFIG);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const singleTimeSync = useTimeSyncCheck(files.rover, [files.base], files.nav);
-  const batchTimeSync = useTimeSyncCheck(batchFiles.rover, batchFiles.bases, batchFiles.nav);
+  const batchTimeSync = useTimeSyncCheck(batchFiles.rover, batchFiles.bases.map((b) => b.file), batchFiles.nav);
   const timeSync = mode === "single" ? singleTimeSync : batchTimeSync;
 
   const canSubmit =
@@ -44,7 +48,10 @@ export function NewJob() {
     timeSync.status !== "checking" &&
     (mode === "single"
       ? !!files.rover && files.nav.length > 0
-      : !!batchFiles.rover && batchFiles.nav.length > 0 && batchFiles.bases.length > 0 && batchFiles.bases.every(Boolean));
+      : !!batchFiles.rover &&
+        batchFiles.nav.length > 0 &&
+        batchFiles.bases.length > 0 &&
+        batchFiles.bases.every((b) => b.file !== null));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -144,8 +151,9 @@ export function NewJob() {
           ) : (
             <Card className="p-4">
               <p className="mb-4 text-sm text-muted">
-                100 random configs will be generated per the bounds below and run against each base. Base position is
-                taken from each base file (single-solution mode) — no manual coordinates.
+                100 random configs will be generated per the bounds below and run against each base. Set a known
+                coordinate on a base above if it's a surveyed station — otherwise its position is computed from the
+                base file (single-solution mode).
               </p>
               <SweepConfigForm value={sweepConfig} onChange={setSweepConfig} />
             </Card>
