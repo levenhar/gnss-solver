@@ -8,12 +8,13 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 from pyproj import Transformer
 
 from api import jobstore
 from api.queue import get_queue, get_redis
 from api.schemas import (
+    BaseCoordEntry,
     BatchBaseReport,
     BatchBaseStatus,
     BatchCreated,
@@ -31,7 +32,7 @@ from api.schemas import (
     TimeWindow,
 )
 from gnss_engine.errors import DecompressError, ParseError, RinexValidationError
-from gnss_engine.models.config import ProcessingConfig, SweepConfig
+from gnss_engine.models.config import BaseCoordMode, ProcessingConfig, SweepConfig
 from gnss_engine.rinex.decompress import decompress_to
 from gnss_engine.rinex.header import parse_header, parse_nav_time_range
 from gnss_engine.sweep import random_sweep
@@ -46,6 +47,8 @@ app = FastAPI(title="GNSS Solver API")
 # of job dirs (each duplicating full rover/nav/base file bytes to disk) before
 # the request handler returns.
 MAX_TOTAL_BATCH_JOBS = 500
+
+_BASE_COORDS_ADAPTER = TypeAdapter(list[BaseCoordEntry])
 
 app.add_middleware(
     CORSMiddleware,
@@ -125,6 +128,7 @@ async def create_batch(
     nav: list[UploadFile] = File(...),
     base: list[UploadFile] = File(...),
     sweep_config: str = Form(...),
+    base_coords: str | None = Form(None),
     n_configs: int = Form(100),
     name: str | None = Form(None),
 ) -> BatchCreated:
@@ -138,6 +142,26 @@ async def create_batch(
         sweep = SweepConfig.model_validate_json(sweep_config)
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=f"invalid sweep_config: {exc}") from exc
+
+    if base_coords is None:
+        base_coord_entries = [BaseCoordEntry() for _ in base]
+    else:
+        try:
+            base_coord_entries = _BASE_COORDS_ADAPTER.validate_json(base_coords)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=f"invalid base_coords: {exc}") from exc
+        if len(base_coord_entries) != len(base):
+            raise HTTPException(
+                status_code=422,
+                detail="base_coords length must match number of base files",
+            )
+        for i, entry in enumerate(base_coord_entries):
+            if entry.mode != BaseCoordMode.SINGLE and entry.coord is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"base_coords[{i}]: coord is required when mode is not 'single'",
+                )
+
     if len(base) * n_configs > MAX_TOTAL_BATCH_JOBS:
         raise HTTPException(
             status_code=422,
@@ -173,6 +197,7 @@ async def create_batch(
         base_id = f"base-{base_idx}"
         base_filename = bf.filename or f"base{base_idx}.rnx"
         base_bytes = await bf.read()
+        coord_entry = base_coord_entries[base_idx]
         jobs = []
         for config_idx, cfg in enumerate(configs):
             job_id = uuid.uuid4().hex
@@ -180,11 +205,21 @@ async def create_batch(
             for nav_filename, nav_bytes in nav_uploads:
                 jobstore.save_upload(job_id, "nav", nav_filename, nav_bytes)
             jobstore.save_upload(job_id, "base", base_filename, base_bytes)
-            jobstore.write_config(job_id, cfg)
+            job_cfg = cfg.model_copy(update={
+                "base_coord_mode": coord_entry.mode,
+                "base_coord": coord_entry.coord,
+            })
+            jobstore.write_config(job_id, job_cfg)
             jobstore.write_job_sweep_config(job_id, sweep)
             queue.enqueue("api.tasks.run_solve_job", job_id, job_id=job_id)
             jobs.append({"job_id": job_id, "config_idx": config_idx})
-        bases_manifest.append({"base_id": base_id, "filename": base_filename, "jobs": jobs})
+        bases_manifest.append({
+            "base_id": base_id,
+            "filename": base_filename,
+            "base_coord_mode": coord_entry.mode.value,
+            "base_coord": coord_entry.coord,
+            "jobs": jobs,
+        })
 
     jobstore.write_batch_manifest(batch_id, {
         "batch_id": batch_id,

@@ -223,6 +223,64 @@ def test_post_batch_creates_jobs_for_every_base_and_config(client):
     assert len(set(all_job_ids)) == 6
 
 
+def test_post_batch_applies_per_base_known_coord(client):
+    base_coords = json.dumps([
+        {"mode": "single", "coord": None},
+        {"mode": "known-llh", "coord": [32.0, 34.0, 50.0]},
+    ])
+    resp = client.post(
+        "/batches",
+        files=_batch_files(n_bases=2),
+        data={**_batch_data("2"), "base_coords": base_coords},
+    )
+    assert resp.status_code == 201
+    manifest = jobstore.read_batch_manifest(resp.json()["batch_id"])
+    base0_job = manifest["bases"][0]["jobs"][0]["job_id"]
+    base1_job = manifest["bases"][1]["jobs"][0]["job_id"]
+    cfg0 = jobstore.read_config(base0_job)
+    cfg1 = jobstore.read_config(base1_job)
+    assert cfg0.base_coord_mode == "single"
+    assert cfg0.base_coord is None
+    assert cfg1.base_coord_mode == "known-llh"
+    assert cfg1.base_coord == (32.0, 34.0, 50.0)
+    assert manifest["bases"][0]["base_coord_mode"] == "single"
+    assert manifest["bases"][0]["base_coord"] is None
+    assert manifest["bases"][1]["base_coord_mode"] == "known-llh"
+    assert manifest["bases"][1]["base_coord"] == [32.0, 34.0, 50.0]
+
+
+def test_post_batch_defaults_base_coords_to_single_when_omitted(client):
+    resp = client.post("/batches", files=_batch_files(n_bases=2), data=_batch_data("1"))
+    assert resp.status_code == 201
+    manifest = jobstore.read_batch_manifest(resp.json()["batch_id"])
+    for b in manifest["bases"]:
+        assert b["base_coord_mode"] == "single"
+        assert b["base_coord"] is None
+        cfg = jobstore.read_config(b["jobs"][0]["job_id"])
+        assert cfg.base_coord_mode == "single"
+        assert cfg.base_coord is None
+
+
+def test_post_batch_rejects_base_coords_length_mismatch(client):
+    base_coords = json.dumps([{"mode": "single", "coord": None}])
+    resp = client.post(
+        "/batches",
+        files=_batch_files(n_bases=2),
+        data={**_batch_data("1"), "base_coords": base_coords},
+    )
+    assert resp.status_code == 422
+
+
+def test_post_batch_rejects_known_mode_missing_coord(client):
+    base_coords = json.dumps([{"mode": "known-xyz", "coord": None}])
+    resp = client.post(
+        "/batches",
+        files=_batch_files(n_bases=1),
+        data={**_batch_data("1"), "base_coords": base_coords},
+    )
+    assert resp.status_code == 422
+
+
 def test_post_batch_requires_at_least_one_base(client):
     files = [
         ("rover", ("r.rnx", b"OBS", "application/octet-stream")),

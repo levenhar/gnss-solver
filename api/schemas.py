@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from gnss_engine.models.config import BaseCoordMode
+
 
 class ErrorInfo(BaseModel):
     type: str
@@ -32,6 +34,11 @@ class JobListItem(BaseModel):
     job_id: str
     status: str
     name: str | None = None
+
+
+class BaseCoordEntry(BaseModel):
+    mode: BaseCoordMode = BaseCoordMode.SINGLE
+    coord: tuple[float, float, float] | None = None
 
 
 class BatchCreated(BaseModel):
