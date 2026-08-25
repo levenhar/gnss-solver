@@ -15,7 +15,7 @@ Coordinate is tied to the **physical base station identity** (which base file), 
 ```
 Frontend (per-base row: mode + coord inputs)
    -> buildBatchForm.ts: base_coords (JSON, order-matched to base files)
-   -> POST /batches: base_coords: str = Form(...)
+   -> POST /batches: base_coords: str | None = Form(None)
    -> parse + validate (length match, coord required when mode != single)
    -> for each base, for each drawn config:
         job_cfg = cfg.model_copy(update={base_coord_mode, base_coord})
