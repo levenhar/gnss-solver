@@ -33,7 +33,8 @@ class BaseCoordEntry(BaseModel):
 ```
 
 **`api/main.py`** `/batches` (`api/main.py:122-199`):
-- Add `base_coords: str = Form(...)`, parsed via `TypeAdapter(list[BaseCoordEntry]).validate_json(...)` (422 on parse failure, consistent with existing `sweep_config` handling at `main.py:137-140`).
+- Add `base_coords: str | None = Form(None)` — **optional**, not required. `tests/api/test_main.py` has ~30 existing calls to `POST /batches` that don't pass this field; making it required would break all of them for no reason. When omitted, default to one `BaseCoordEntry()` (mode `single`, coord `None`) per base file — identical to today's behavior and to the frontend's own per-row default (see Frontend changes below), so this is a pure backward-compatible addition.
+- When provided, parse via `TypeAdapter(list[BaseCoordEntry]).validate_json(...)` (422 on parse failure, consistent with existing `sweep_config` handling at `main.py:137-140`).
 - Validate `len(base_coords) == len(base)` — 422 `"base_coords length must match number of base files"` if not.
 - Validate, per entry: if `mode != BaseCoordMode.SINGLE` then `coord is not None` — 422 `"base_coords[i]: coord is required when mode is not 'single'"` if not. (This closes a validation gap that already exists on `ProcessingConfig` for single-job submission, but only for this new field — not retrofitted onto the single-job endpoint, which is out of scope.)
 - In the base loop (`main.py:172-187`), for each `(base_idx, bf)`, build `job_cfg = cfg.model_copy(update={"base_coord_mode": base_coords[base_idx].mode, "base_coord": base_coords[base_idx].coord})` and `jobstore.write_config(job_id, job_cfg)` instead of writing `cfg` directly.
